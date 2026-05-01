@@ -1,4 +1,3 @@
-// app/preferences/index.jsx
 import React, { useContext, useState } from "react";
 import { View, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -87,6 +86,7 @@ export default function Preference() {
         goal: goal,
       };
 
+      console.log("YE LO ****** ", data)
       // Calculate calories via AI
       const PROMPT = JSON.stringify(data) + " " + Prompt.CALORIES_PROMPT;
       const AIResult = await calculateCaloriesAI(PROMPT);
@@ -94,7 +94,7 @@ export default function Preference() {
       const JSONContent = JSON.parse(
         AIResult.replace(/```json/g, "").replace(/```/g, "").trim()
       );
-
+      console.log("JSON CONTENT HSI BHSI")
       // Update user preferences in Convex
       await UpdateUserPref({
         ...data,

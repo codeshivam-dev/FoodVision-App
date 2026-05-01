@@ -61,6 +61,7 @@ export const UpdateUserPref = mutation({
         weight: v.string(),
         gender: v.string(),
         goal: v.string(),
+        age: v.optional(v.string()),
         calories: v.optional(v.number()),
         proteins: v.optional(v.number()),
     },
@@ -70,6 +71,7 @@ export const UpdateUserPref = mutation({
             weight: args.weight,
             gender: args.gender,
             goal: args.goal,
+            age: args.age,
             calories: args.calories,
             proteins: args.proteins
         });
