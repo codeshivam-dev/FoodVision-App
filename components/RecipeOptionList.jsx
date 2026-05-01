@@ -1,95 +1,225 @@
-import { View, Text, TouchableOpacity } from 'react-native'
-import Colors from '../shared/Colors'
-import LoadingDialog from './shared/LoadingDialog'
-import { useContext, useState } from 'react'
-import { GenerateWithAi } from '../services/AiModel';
-import Prompt from '../shared/Prompt';
-import { useMutation } from 'convex/react';
-import { api } from '../convex/_generated/api';
-import { UserContext } from '../context/UserContext';
-import { useRouter } from 'expo-router';
+import { View, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useContext, useState } from "react";
+import { useTheme } from "../context/ThemeContext";
+import { GenerateWithAi } from "../services/AiModel";
+import Prompt from "../shared/Prompt";
+import { useMutation } from "convex/react";
+import { api } from "../convex/_generated/api";
+import { UserContext } from "../context/UserContext";
+import { useRouter } from "expo-router";
+import { Txt, Card } from "./UIComponents";
+import LoadingDialog from "./shared/LoadingDialog";
 
 export default function RecipeOptionList({ recipeOption }) {
-    const [loading, setLoading] = useState(false);
-    const CreateRecipe = useMutation(api.Recipes.CreateRecipe)
-    const { user } = useContext(UserContext)
-    const router = useRouter();
+  const router = useRouter();
+  const { theme } = useTheme();
+  const { user } = useContext(UserContext);
+  const CreateRecipe = useMutation(api.Recipes.CreateRecipe);
+  
+  const [loading, setLoading] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(null);
 
-    const onRecipeOptionSelect = async (recipe) => {
-        setLoading(true);
-        try {
-            const PROMPT = "RecipeName : " + recipe.recipeName + " ,Recipe Description : " + recipe.description + Prompt.GENERATE_COMPLETE_RECIPE_PROMPT;
-            // console.log("Prompt : " , PROMPT)
-            const AIResult = await GenerateWithAi(PROMPT);
-            // Parse AI Result to Json object and make sure replace any unwanted characters
-            const JSONContent = JSON.parse(AIResult.replace('```json', '').replace('```', ''));
-            // console.log(JSONContent)
+  const onRecipeOptionSelect = async (recipe, index) => {
+    if (loading) return; // Prevent double clicks
+    
+    setSelectedIndex(index);
+    setLoading(true);
 
-            // Generate RecipeImage
-            // const aiImage = await GenerateImageWithAI(JSONContent.imagePrompt);
-            // console.log("Ai Image", aiImage)
+    try {
+      // Generate complete recipe from AI
+      const PROMPT = `RecipeName: ${recipe.recipeName}, Description: ${recipe.description} ${Prompt.GENERATE_COMPLETE_RECIPE_PROMPT}`;
+      const AIResult = await GenerateWithAi(PROMPT);
+      
+      // Parse AI response
+      const JSONContent = JSON.parse(
+        AIResult.replace(/```json/g, "").replace(/```/g, "").trim()
+      );
 
-            // Save to database
-            const saveRecipeResult = await CreateRecipe({
-                jsonData: JSONContent,
-                imageURI: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQfx0EZ_atQzJ02juJ9rckhMv2MM2vpmzYBHA&s",
-                recipeName: JSONContent?.recipeName,
-                uid: user?._id
-            })
-            console.log("Saved Recipe result : ", saveRecipeResult)
+      // Validate AI response
+      if (!JSONContent?.recipeName) {
+        throw new Error("Invalid recipe data received");
+      }
 
-            setLoading(false);
+      // Save to database
+      const recipeId = await CreateRecipe({
+        jsonData: JSONContent,
+        imageURI: JSONContent.imageURI || "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQfx0EZ_atQzJ02juJ9rckhMv2MM2vpmzYBHA&s",
+        recipeName: JSONContent.recipeName,
+        uid: user?._id,
+      });
 
-            // Redirect to Recipe-Detail screen
-            router.push({
-                pathname: "/recipe-detail",
-                params: {
-                    recipeId: saveRecipeResult,
-                }
-            });
+      console.log("Recipe saved:", recipeId);
 
+      // Navigate to recipe detail
+      router.push({
+        pathname: "/recipe-detail",
+        params: { recipeId },
+      });
 
-
-        } catch (error) {
-            console.log(error)
-            setLoading(false);
-        }
-        finally {
-            setLoading(false)
-        }
+    } catch (error) {
+      console.error("Recipe generation error:", error);
+      
+      Alert.alert(
+        "Generation Failed",
+        "Unable to create this recipe. Please try another option.",
+        [
+          { text: "Try Again", onPress: () => onRecipeOptionSelect(recipe, index) },
+          { text: "Cancel", style: "cancel" },
+        ]
+      );
+    } finally {
+      setLoading(false);
+      setSelectedIndex(null);
     }
-    return (
-        <View style={{
-            marginTop: 20
-        }}>
-            <Text style={{
-                fontSize: 20,
-                fontWeight: 'bold'
-            }}>Select Recipe</Text>
-            <View>
+  };
+
+  return (
+    <View style={{ marginTop: 20 }}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Txt size={theme.fontSize.xl} bold color={theme.colors.text}>
+          Select Recipe
+        </Txt>
+        <Txt size={theme.fontSize.xs} color={theme.colors.textSecondary}>
+          {recipeOption?.length || 0} options found
+        </Txt>
+      </View>
+
+      {/* Recipe Options */}
+      <View style={{ gap: 12, marginTop: 16 }}>
+        {recipeOption?.map((item, index) => {
+          const isSelected = selectedIndex === index;
+          
+          return (
+            <TouchableOpacity
+              key={item.recipeName + index}
+              onPress={() => onRecipeOptionSelect(item, index)}
+              disabled={loading}
+              activeOpacity={0.7}
+              style={[
+                styles.recipeCard,
                 {
-                    recipeOption?.map((item, index) => (
-                        <TouchableOpacity
-                            key={index}
-                            onPress={() => onRecipeOptionSelect(item)}
-                            style={{
-                                padding: 15,
-                                borderWidth: 0.2,
-                                borderRadius: 15,
-                                marginTop: 15
-                            }}>
-                            <Text style={{
-                                fontSize: 16,
-                                fontWeight: 'bold'
-                            }}>{item?.recipeName}</Text>
-                            <Text style={{
-                                color: Colors.GRAY
-                            }}>{item?.description}</Text>
-                        </TouchableOpacity>
-                    ))
-                }
-            </View>
-            <LoadingDialog loading={loading} />
-        </View>
-    )
+                  backgroundColor: theme.colors.card,
+                  borderColor: isSelected 
+                    ? theme.colors.primary 
+                    : theme.colors.border,
+                  borderWidth: isSelected ? 2 : 1,
+                  ...theme.shadows.small,
+                },
+              ]}
+            >
+              {/* Recipe Icon */}
+              <View style={[styles.iconContainer, { 
+                backgroundColor: theme.colors.primaryLight 
+              }]}>
+                <Ionicons 
+                  name="restaurant-outline" 
+                  size={24} 
+                  color={theme.colors.primary} 
+                />
+              </View>
+
+              {/* Recipe Info */}
+              <View style={styles.recipeInfo}>
+                <Txt 
+                  size={theme.fontSize.md} 
+                  bold 
+                  color={theme.colors.text}
+                  style={{ marginBottom: 4 }}
+                >
+                  {item?.recipeName || "Unnamed Recipe"}
+                </Txt>
+                
+                <Txt 
+                  size={theme.fontSize.sm} 
+                  color={theme.colors.textSecondary}
+                  numberOfLines={2}
+                >
+                  {item?.description || "No description available"}
+                </Txt>
+
+                {/* Additional Info Tags */}
+                {item?.cookTime && (
+                  <View style={[styles.tag, { 
+                    backgroundColor: theme.colors.inputBg,
+                    marginTop: 8,
+                  }]}>
+                    <Ionicons 
+                      name="time-outline" 
+                      size={12} 
+                      color={theme.colors.textSecondary} 
+                    />
+                    <Txt 
+                      size={theme.fontSize.xs} 
+                      color={theme.colors.textSecondary}
+                    >
+                      {item.cookTime} min
+                    </Txt>
+                  </View>
+                )}
+              </View>
+
+              {/* Arrow Icon */}
+              <View style={styles.arrowIcon}>
+                <Ionicons 
+                  name={isSelected ? "hourglass-outline" : "chevron-forward"} 
+                  size={20} 
+                  color={isSelected ? theme.colors.primary : theme.colors.textSecondary} 
+                />
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Loading Dialog */}
+      <LoadingDialog 
+        loading={loading} 
+        message="Generating complete recipe..."
+      />
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    paddingHorizontal: 4,
+  },
+  recipeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    gap: 14,
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recipeInfo: {
+    flex: 1,
+  },
+  tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  arrowIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

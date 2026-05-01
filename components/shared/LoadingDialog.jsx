@@ -1,29 +1,35 @@
-import { View, Text, Modal, ActivityIndicator } from 'react-native'
-import Colors from '../../shared/Colors'
+import { View, Text, Modal, ActivityIndicator } from 'react-native';
+import { useTheme } from '../../context/ThemeContext';
 
-export default function LoadingDialog({loading=false}) {
+export default function LoadingDialog({ loading = false, message = "Loading..." }) {
+  const { theme } = useTheme();
+
+  if (!loading) return null;
+
   return (
-    <Modal transparent visible={loading}>
+    <Modal transparent visible={loading} animationType="fade">
+      <View style={{
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: theme.colors.overlay,
+      }}>
         <View style={{
-            flex:1,
-            alignItems: 'center',
-            justifyContent:'center',
-            backgroundColor:'#00000070'
+          padding: 20,
+          borderRadius: 15,
+          backgroundColor: theme.colors.primary,
+          alignItems: 'center',
         }}>
-            <View style={{
-                padding:20,
-                borderRadius: 15,
-                backgroundColor: Colors.PRIMARY,
-                alignItems: 'center'
-            }}>
-                <ActivityIndicator size={'large'} color={Colors.WHITE} />
-                <Text style={{
-                    color:Colors.WHITE,
-                    fontSize: 18,
-                    margin: 9
-                }}>Loading...</Text>
-            </View>
+          <ActivityIndicator size={'large'} color={theme.colors.white} />
+          <Text style={{
+            color: theme.colors.white,
+            fontSize: 18,
+            marginTop: 10,
+          }}>
+            {message}
+          </Text>
         </View>
+      </View>
     </Modal>
-  )
+  );
 }

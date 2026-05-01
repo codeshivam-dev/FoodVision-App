@@ -1,93 +1,215 @@
-import { View, Text, Image, StyleSheet } from 'react-native'
-import Colors from '../shared/Colors';
+import { View, Image, StyleSheet } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useTheme } from '../context/ThemeContext';
+import { Txt } from './UIComponents';
 
 export default function RecipeIntro({ recipeDetail }) {
-    console.log(recipeDetail)
-    const RecipeJson = recipeDetail?.jsonData;
-    return (
-        <View>
-            <Image source={{ uri: recipeDetail?.imageURI }} style={{
-                width: '100%',
-                height: 200,
-                borderRadius: 15,
-            }} />
+  const { theme } = useTheme();
+  const RecipeJson = recipeDetail?.jsonData || {};
 
-            <View style={{
-                marginTop: 15,
-                display:'flex',
-                flexDirection:'row',
-                justifyContent:'space-between'
-            }}>
-                <Text style={{
-                    fontSize: 25,
-                    fontWeight: 'bold',
-                }}>{recipeDetail?.recipeName}</Text>
-                <MaterialIcons name="add-box" size={40} color={Colors.PRIMARY} />
-            </View>
+  // Stats to display
+  const recipeStats = [
+    {
+      icon: <MaterialIcons name="local-fire-department" size={24} color={theme.colors.primary} />,
+      label: 'Calories',
+      value: RecipeJson?.calories || '--',
+      unit: 'kcal',
+    },
+    {
+      icon: <AntDesign name="clockcircle" size={24} color={theme.colors.primary} />,
+      label: 'Cook Time',
+      value: RecipeJson?.cookTime || '--',
+      unit: 'min',
+    },
+    {
+      icon: <Ionicons name="fast-food" size={24} color={theme.colors.primary} />,
+      label: 'Servings',
+      value: RecipeJson?.serveTo || '--',
+      unit: 'serve',
+    },
+  ];
 
-            <Text style={{
-                fontSize:16,
-                marginTop:6,
-                color:Colors.GRAY,
-                lineHeight:25
-            }}>{RecipeJson?.description}</Text>
+  return (
+    <View>
+      {/* Recipe Image */}
+      <Image 
+        source={{ uri: recipeDetail?.imageURI }} 
+        style={styles.image}
+        resizeMode="cover"
+      />
 
-            <View style={{
-                marginTop:15,
-                display:'flex',
-                flexDirection:'row',
-                justifyContent:'space-between',
-                gap:10
-            }}>
-                <View style={styles.iconContainer}>
-                    <MaterialIcons name="local-fire-department" size={30} color={Colors.PRIMARY}  style={styles.iconBg}/>
-                    <Text style={styles.subText}>Calories</Text>
-                    <Text style={styles.count}>{RecipeJson?.calories}</Text>
-                </View>
-                {/* <View style={styles.iconContainer}>
-                    <MaterialCommunityIcons name="dumbbell" size={30} color={Colors.PRIMARY}  style={styles.iconBg}/>
-                    <Text style={styles.subText}>Protien</Text>
-                    <Text style={styles.count}>{RecipeJson?.protien}</Text>
-                </View> */}
-                <View style={styles.iconContainer}>
-                    <AntDesign name="clock-circle" size={30} color={Colors.PRIMARY}  style={styles.iconBg} />
-                    <Text style={styles.subText}>Time</Text>
-                    <Text style={styles.count}>{RecipeJson?.cookTime}</Text>
-                </View>
-                <View style={styles.iconContainer}>
-                    <Ionicons name="fast-food" size={30} color={Colors.PRIMARY}  style={styles.iconBg} />
-                    <Text style={styles.subText}>Serve</Text>
-                    <Text style={styles.count}>{RecipeJson?.serveTo}</Text>
-                </View>
-            </View>
+      {/* Recipe Name Row */}
+      <View style={[styles.titleRow, { borderBottomColor: theme.colors.divider }]}>
+        <View style={{ flex: 1 }}>
+          <Txt size={theme.fontSize.xxl} bold color={theme.colors.text}>
+            {recipeDetail?.recipeName || 'Unnamed Recipe'}
+          </Txt>
+          
+          {/* Quick Tags */}
+          <View style={styles.tagsRow}>
+            {RecipeJson?.difficulty && (
+              <View style={[styles.tag, { 
+                backgroundColor: theme.colors.inputBg,
+                borderColor: theme.colors.border,
+              }]}>
+                <MaterialIcons 
+                  name="speed" 
+                  size={12} 
+                  color={theme.colors.textSecondary} 
+                />
+                <Txt size={theme.fontSize.xs} color={theme.colors.textSecondary}>
+                  {RecipeJson.difficulty}
+                </Txt>
+              </View>
+            )}
+            {RecipeJson?.cuisine && (
+              <View style={[styles.tag, { 
+                backgroundColor: theme.colors.inputBg,
+                borderColor: theme.colors.border,
+              }]}>
+                <MaterialCommunityIcons 
+                  name="chef-hat" 
+                  size={12} 
+                  color={theme.colors.textSecondary} 
+                />
+                <Txt size={theme.fontSize.xs} color={theme.colors.textSecondary}>
+                  {RecipeJson.cuisine}
+                </Txt>
+              </View>
+            )}
+          </View>
         </View>
-    )
+      </View>
+
+      {/* Description */}
+      {RecipeJson?.description && (
+        <Txt 
+          size={theme.fontSize.md} 
+          color={theme.colors.textSecondary}
+          style={styles.description}
+        >
+          {RecipeJson.description}
+        </Txt>
+      )}
+
+      {/* Stats Cards */}
+      <View style={styles.statsContainer}>
+        {recipeStats.map((stat, index) => (
+          <View 
+            key={stat.label}
+            style={[styles.statCard, { 
+              backgroundColor: index === 0 
+                ? theme.colors.primaryLight 
+                : theme.colors.card,
+              borderColor: index === 0 
+                ? theme.colors.primary + '30' 
+                : theme.colors.border,
+              borderWidth: 1,
+            }]}
+          >
+            {/* Icon */}
+            <View style={[styles.iconCircle, { 
+              backgroundColor: index === 0 
+                ? theme.colors.primary + '20' 
+                : theme.colors.primaryLight 
+            }]}>
+              {stat.icon}
+            </View>
+
+            {/* Value */}
+            <View style={styles.statInfo}>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
+                <Txt 
+                  size={theme.fontSize.xl} 
+                  bold 
+                  color={theme.colors.text}
+                >
+                  {stat.value}
+                </Txt>
+                {stat.unit && (
+                  <Txt 
+                    size={theme.fontSize.xs} 
+                    color={theme.colors.textSecondary}
+                  >
+                    {stat.unit}
+                  </Txt>
+                )}
+              </View>
+              
+              <Txt 
+                size={theme.fontSize.xs} 
+                color={theme.colors.textSecondary}
+              >
+                {stat.label}
+              </Txt>
+            </View>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    iconBg:{
-        padding:6
-    },
-    iconContainer:{
-        display:'flex',
-        alignItems:'center',
-        padding:6,
-        borderRadius: 10,
-        backgroundColor: '#fbf5ff',
-        flex:1
-    },
-    subText:{
-        fontSize:18
-    },
-    count:{
-        fontSize:20,
-        fontWeight:'bold',
-        color:Colors.PRIMARY
-    }
-
-    
-})
+  image: {
+    width: '100%',
+    height: 220,
+    borderRadius: 16,
+    backgroundColor: '#E5E7EB',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    gap: 10,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  description: {
+    marginTop: 12,
+    lineHeight: 24,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginTop: 16,
+  },
+  statCard: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statInfo: {
+    alignItems: 'center',
+    gap: 2,
+  },
+});

@@ -1,28 +1,32 @@
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
   ImageBackground,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import React, { useContext, useState, useEffect } from "react";
 import { Ionicons, Feather, MaterialIcons } from "@expo/vector-icons";
 import { signOut } from "firebase/auth";
 import { auth } from "../../services/FirebasConfig";
 import { UserContext } from "../../context/UserContext";
+import { useTheme } from "../../context/ThemeContext";
 import { useRouter } from "expo-router";
 import { useConvex } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import Colors from "../../shared/Colors";
+import { Txt, Card } from "../../components/UIComponents";
 
 export default function Profile() {
   const { user, setUser } = useContext(UserContext);
   const router = useRouter();
   const convex = useConvex();
+  const { theme } = useTheme();
+  
   const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -48,18 +52,20 @@ export default function Profile() {
   }, [user]);
 
   const logOut = async () => {
-    await signOut(auth);
-    setUser(null);
-    router.replace("/auth/SignIn");
+    try {
+      await signOut(auth);
+      setUser(null);
+      router.replace("/auth/SignIn");
+    } catch (error) {
+      Alert.alert("Error", "Failed to log out");
+    }
   };
 
-  const handleEdit = () => {
-    setIsEditing(true);
-  };
+  const handleEdit = () => setIsEditing(true);
 
   const handleCancel = () => {
     setIsEditing(false);
-    // Reset form to original values
+    // Reset form to original user data
     if (user) {
       setForm({
         name: user.name || '',
@@ -74,17 +80,25 @@ export default function Profile() {
   };
 
   const handleSave = async () => {
+    if (!form.name?.trim() || !form.email?.trim()) {
+      Alert.alert("Required", "Name and email are required");
+      return;
+    }
+
+    setSaving(true);
     try {
       await convex.mutation(api.Users.UpdateUserProfile, {
         uid: user._id,
         ...form,
       });
-      // Update local user context
+      
       setUser({ ...user, ...form });
       setIsEditing(false);
       Alert.alert('Success', 'Profile updated successfully');
     } catch (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Error', error.message || 'Failed to update profile');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -95,33 +109,41 @@ export default function Profile() {
   const menuOptions = [
     {
       title: "My Progress",
-      icon: <Ionicons name="analytics-outline" size={22} color="#444" />,
+      icon: "analytics-outline",
+      iconLib: Ionicons,
       path: '/(tabs)/Progress'
     },
     {
       title: "Explore Recipes",
-      icon: <Ionicons name="restaurant-outline" size={22} color="#444" />,
+      icon: "restaurant-outline",
+      iconLib: Ionicons,
       path: '/(tabs)/Meals'
     },
     {
       title: "AI Recipes",
-      icon: <Ionicons name="sparkles-outline" size={22} color="#444" />,
+      icon: "sparkles-outline",
+      iconLib: Ionicons,
       path: '/generate-ai-recipe'
     },
     {
       title: "Privacy & Security",
-      icon: <Feather name="shield" size={22} color="#444" />,
+      icon: "shield",
+      iconLib: Feather,
       path: '/(tabs)/Home'
     },
     {
       title: "Help Center",
-      icon: <Feather name="help-circle" size={22} color="#444" />,
-      path:'/(tabs)/Home'
+      icon: "help-circle",
+      iconLib: Feather,
+      path: '/(tabs)/Home'
     },
   ];
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView 
+      style={{ flex: 1, backgroundColor: theme.colors.surface }}
+      showsVerticalScrollIndicator={false}
+    >
       {/* Cover Photo */}
       <ImageBackground
         source={{
@@ -131,281 +153,321 @@ export default function Profile() {
       />
 
       {/* Profile Card */}
-      <View style={styles.profileCard}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
+      <Card style={[styles.profileCard, { backgroundColor: theme.colors.card }]}>
+        {/* Avatar */}
+        <View style={[styles.avatar, { backgroundColor: theme.colors.accent || theme.colors.GREEN }]}>
+          <Txt 
+            size={theme.fontSize.xxxl} 
+            bold 
+            color={theme.colors.white}
+          >
             {(form.name || "U")[0].toUpperCase()}
-          </Text>
+          </Txt>
         </View>
 
         {isEditing ? (
-          <>
-            <TextInput
-              style={styles.input}
+          <View style={{ width: '100%', gap: 10 }}>
+            <ProfileInput
               placeholder="Name"
               value={form.name}
               onChangeText={(value) => updateForm('name', value)}
+              theme={theme}
             />
-            <TextInput
-              style={styles.input}
+            <ProfileInput
               placeholder="Email"
               value={form.email}
               onChangeText={(value) => updateForm('email', value)}
               keyboardType="email-address"
+              theme={theme}
             />
-            <TextInput
-              style={styles.input}
+            <ProfileInput
               placeholder="Age"
               value={form.age}
               onChangeText={(value) => updateForm('age', value)}
               keyboardType="numeric"
+              theme={theme}
             />
-            <TextInput
-              style={styles.input}
+            <ProfileInput
               placeholder="Gender"
               value={form.gender}
               onChangeText={(value) => updateForm('gender', value)}
+              theme={theme}
             />
-            <TextInput
-              style={styles.input}
-              placeholder="Goal"
+            <ProfileInput
+              placeholder="Goal (e.g., Weight Loss, Muscle Gain)"
               value={form.goal}
               onChangeText={(value) => updateForm('goal', value)}
+              theme={theme}
             />
+
             <View style={styles.buttonRow}>
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-                <Text style={styles.saveText}>Save</Text>
+              <TouchableOpacity 
+                style={[styles.saveBtn, { backgroundColor: theme.colors.accent || theme.colors.GREEN }]}
+                onPress={handleSave}
+                disabled={saving}
+              >
+                {saving ? (
+                  <ActivityIndicator color={theme.colors.white} size="small" />
+                ) : (
+                  <Txt size={theme.fontSize.md} bold color={theme.colors.white}>
+                    Save
+                  </Txt>
+                )}
               </TouchableOpacity>
-              <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
-                <Text style={styles.cancelText}>Cancel</Text>
+              
+              <TouchableOpacity 
+                style={[styles.cancelBtn, { backgroundColor: theme.colors.textSecondary }]}
+                onPress={handleCancel}
+                disabled={saving}
+              >
+                <Txt size={theme.fontSize.md} bold color={theme.colors.white}>
+                  Cancel
+                </Txt>
               </TouchableOpacity>
             </View>
-          </>
+          </View>
         ) : (
           <>
-            <Text style={styles.userName}>{user?.name || "User"}</Text>
-            <Text style={styles.userEmail}>{user?.email || "user@email.com"}</Text>
-            {user?.gender && <Text style={styles.userDetail}>Gender: {user.gender}</Text>}
-            {user?.goal && <Text style={styles.userDetail}>Goal: {user.goal}</Text>}
+            <Txt size={theme.fontSize.lg} bold color={theme.colors.text}>
+              {user?.name || "User"}
+            </Txt>
+            <Txt size={theme.fontSize.sm} color={theme.colors.textSecondary} style={{ marginBottom: 8 }}>
+              {user?.email || "user@email.com"}
+            </Txt>
+            
+            {user?.gender && (
+              <Txt size={theme.fontSize.sm} color={theme.colors.textSecondary}>
+                Gender: {user.gender}
+              </Txt>
+            )}
+            {user?.goal && (
+              <Txt size={theme.fontSize.sm} color={theme.colors.textSecondary}>
+                Goal: {user.goal}
+              </Txt>
+            )}
 
-            <TouchableOpacity style={styles.editBtn} onPress={handleEdit}>
-              <Text style={styles.editText}>Edit Profile</Text>
+            <TouchableOpacity 
+              style={[styles.editBtn, { 
+                borderColor: theme.colors.accent || theme.colors.GREEN,
+                marginTop: 12,
+              }]}
+              onPress={handleEdit}
+            >
+              <Txt size={theme.fontSize.sm} bold color={theme.colors.accent || theme.colors.GREEN}>
+                Edit Profile
+              </Txt>
             </TouchableOpacity>
           </>
         )}
-      </View>
+      </Card>
 
-      {/* Stats */}
-      <View style={styles.statsCard}>
-        <View style={styles.statBox}>
-          {isEditing ? (
-            <TextInput
-              style={styles.statInput}
-              placeholder="Weight"
-              value={form.weight}
-              onChangeText={(value) => updateForm('weight', value)}
-              keyboardType="numeric"
-            />
-          ) : (
-            <Text style={styles.statValue}>{user?.weight || "--"} kg</Text>
-          )}
-          <Text style={styles.statLabel}>Weight</Text>
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.statBox}>
-          {isEditing ? (
-            <TextInput
-              style={styles.statInput}
-              placeholder="Height"
-              value={form.height}
-              onChangeText={(value) => updateForm('height', value)}
-              keyboardType="numeric"
-            />
-          ) : (
-            <Text style={styles.statValue}>{user?.height || "--"} cm</Text>
-          )}
-          <Text style={styles.statLabel}>Height</Text>
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.statBox}>
-          {isEditing ? (
-            <TextInput
-              style={styles.statInput}
-              placeholder="Age"
-              value={form.age}
-              onChangeText={(value) => updateForm('age', value)}
-              keyboardType="numeric"
-            />
-          ) : (
-            <Text style={styles.statValue}>{user?.age || "--"}</Text>
-          )}
-          <Text style={styles.statLabel}>Age</Text>
-        </View>
-      </View>
+      {/* Stats Card */}
+      <Card style={[styles.statsCard, { backgroundColor: theme.colors.card }]}>
+        <StatItem 
+          label="Weight" 
+          value={isEditing ? null : `${user?.weight || '--'} kg`}
+          editValue={form.weight}
+          isEditing={isEditing}
+          onChangeText={(value) => updateForm('weight', value)}
+          theme={theme}
+        />
+        <View style={[styles.divider, { backgroundColor: theme.colors.divider }]} />
+        <StatItem 
+          label="Height" 
+          value={isEditing ? null : `${user?.height || '--'} cm`}
+          editValue={form.height}
+          isEditing={isEditing}
+          onChangeText={(value) => updateForm('height', value)}
+          theme={theme}
+        />
+        <View style={[styles.divider, { backgroundColor: theme.colors.divider }]} />
+        <StatItem 
+          label="Age" 
+          value={isEditing ? null : user?.age || '--'}
+          editValue={form.age}
+          isEditing={isEditing}
+          onChangeText={(value) => updateForm('age', value)}
+          theme={theme}
+        />
+      </Card>
 
-      {/* Subscription */}
-      <View style={styles.planCard}>
+      {/* Premium Plan Card */}
+      <View style={[styles.planCard, { backgroundColor: theme.colors.primary }]}>
         <View style={styles.planHeader}>
           <View>
-            <Text style={styles.planTitle}>Premium Plan</Text>
-            <Text style={styles.planSub}>Unlimited AI recommendations</Text>
+            <Txt size={theme.fontSize.lg} bold color={theme.colors.white}>
+              Premium Plan
+            </Txt>
+            <Txt size={theme.fontSize.xs} color="rgba(255,255,255,0.7)">
+              Unlimited AI recommendations
+            </Txt>
           </View>
           <View style={styles.activeBadge}>
-            <Text style={styles.activeText}>Active</Text>
+            <Txt size={theme.fontSize.xs} color={theme.colors.white}>
+              Active
+            </Txt>
           </View>
         </View>
 
         <TouchableOpacity style={styles.manageBtn}>
-          <Text style={styles.manageText}>Manage Subscription</Text>
+          <Txt size={theme.fontSize.sm} bold color={theme.colors.white}>
+            Manage Subscription
+          </Txt>
         </TouchableOpacity>
       </View>
 
-      {/* Menu */}
-      <View style={styles.menuCard}>
-        {menuOptions.map((item, index) => (
-          <TouchableOpacity
-            key={item.title}
-            onPress={()=>router.push(item?.path)}
-            style={[
-              styles.menuItem,
-              index !== menuOptions.length - 1 && styles.menuDivider,
-            ]}
-          >
-            {item.icon}
-            <Text style={styles.menuText}>{item.title}</Text>
-            <MaterialIcons name="chevron-right" size={22} color="#bbb" />
-          </TouchableOpacity>
-        ))}
-      </View>
+      {/* Menu Options */}
+      <Card style={[styles.menuCard, { backgroundColor: theme.colors.card }]}>
+        {menuOptions.map((item, index) => {
+          const IconComponent = item.iconLib;
+          return (
+            <TouchableOpacity
+              key={item.title}
+              onPress={() => router.push(item.path)}
+              style={[
+                styles.menuItem,
+                index !== menuOptions.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.colors.divider },
+              ]}
+            >
+              <IconComponent name={item.icon} size={22} color={theme.colors.textSecondary} />
+              <Txt size={theme.fontSize.md} color={theme.colors.text} style={{ flex: 1 }}>
+                {item.title}
+              </Txt>
+              <MaterialIcons name="chevron-right" size={22} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          );
+        })}
+      </Card>
 
-      {/* Logout */}
-      <TouchableOpacity style={styles.logoutBtn} onPress={logOut}>
+      {/* Logout Button */}
+      <TouchableOpacity 
+        style={[styles.logoutBtn, { backgroundColor: theme.colors.card }]}
+        onPress={logOut}
+      >
         <Ionicons name="log-out-outline" size={22} color="#E63946" />
-        <Text style={styles.logoutText}>Log Out</Text>
+        <Txt size={theme.fontSize.md} bold color="#E63946">
+          Log Out
+        </Txt>
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
-/* ---------------- Styles ---------------- */
+// Extracted Components
+
+const ProfileInput = ({ theme, ...props }) => (
+  <TextInput
+    style={[styles.input, {
+      backgroundColor: theme.colors.inputBg,
+      borderColor: theme.colors.inputBorder,
+      color: theme.colors.text,
+      fontSize: theme.fontSize.md,
+    }]}
+    placeholderTextColor={theme.colors.textSecondary}
+    {...props}
+  />
+);
+
+const StatItem = ({ label, value, editValue, isEditing, onChangeText, theme }) => (
+  <View style={styles.statBox}>
+    {isEditing ? (
+      <TextInput
+        style={[styles.statInput, {
+          backgroundColor: theme.colors.inputBg,
+          borderColor: theme.colors.inputBorder,
+          color: theme.colors.text,
+          fontSize: theme.fontSize.sm,
+        }]}
+        placeholder={label}
+        value={editValue}
+        onChangeText={onChangeText}
+        keyboardType="numeric"
+        placeholderTextColor={theme.colors.textSecondary}
+      />
+    ) : (
+      <Txt size={theme.fontSize.md} bold color={theme.colors.text}>
+        {value}
+      </Txt>
+    )}
+    <Txt size={theme.fontSize.xs} color={theme.colors.textSecondary}>
+      {label}
+    </Txt>
+  </View>
+);
 
 const styles = StyleSheet.create({
-  container: { backgroundColor: "#F5F5F5" },
-
   cover: {
     height: 200,
     width: "100%",
   },
-
   profileCard: {
-    backgroundColor: Colors.WHITE,
     marginHorizontal: 20,
     marginTop: -50,
-    borderRadius: 20,
-    padding: 20,
     alignItems: "center",
-    elevation: 3,
+    padding: 20,
   },
-
   avatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: Colors.GREEN,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 10,
   },
-  avatarText: {
-    color: Colors.WHITE,
-    fontSize: 32,
-    fontWeight: "700",
-  },
-
-  userName: { fontSize: 18, fontWeight: "700", color: "#222" },
-  userEmail: { fontSize: 12, color: "#666", marginBottom: 10 },
-  userDetail: { fontSize: 14, color: "#666", marginBottom: 5 },
-
   editBtn: {
     borderWidth: 1,
-    borderColor: Colors.GREEN,
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 12,
   },
-  editText: { color: Colors.GREEN, fontWeight: "600" },
-
   input: {
     width: '100%',
-    backgroundColor: '#f8f9fa',
     padding: 12,
     borderRadius: 8,
-    marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#e9ecef',
-    fontSize: 16,
   },
-
   buttonRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginTop: 10,
+    gap: 10,
+    marginTop: 4,
   },
-
   saveBtn: {
-    backgroundColor: Colors.GREEN,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
     flex: 1,
-    marginRight: 10,
     alignItems: 'center',
   },
-  saveText: { color: Colors.WHITE, fontWeight: '600' },
-
   cancelBtn: {
-    backgroundColor: '#6c757d',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
     flex: 1,
-    marginLeft: 10,
     alignItems: 'center',
   },
-  cancelText: { color: Colors.WHITE, fontWeight: '600' },
-
+  statsCard: {
+    margin: 20,
+    flexDirection: "row",
+    justifyContent: "space-around",
+    padding: 16,
+  },
+  statBox: { 
+    alignItems: "center",
+    gap: 4,
+  },
   statInput: {
-    backgroundColor: '#f8f9fa',
     padding: 8,
     borderRadius: 6,
     textAlign: 'center',
     borderWidth: 1,
-    borderColor: '#e9ecef',
-    fontSize: 14,
-    width: 60,
+    width: 70,
   },
-
-  statsCard: {
-    backgroundColor: Colors.WHITE,
-    margin: 20,
-    borderRadius: 20,
-    padding: 16,
-    flexDirection: "row",
-    justifyContent: "space-around",
-  },
-  statBox: { alignItems: "center" },
-  statValue: { fontSize: 16, fontWeight: "700" },
-  statLabel: { fontSize: 12, color: "#666" },
   divider: {
     width: 1,
-    backgroundColor: "#EEE",
-    marginHorizontal: 10,
   },
-
   planCard: {
-    backgroundColor: "#B95FEB",
     marginHorizontal: 20,
+    marginBottom: 20,
     padding: 20,
     borderRadius: 20,
   },
@@ -414,30 +476,22 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 12,
   },
-  planTitle: { color: Colors.WHITE, fontSize: 18, fontWeight: "700" },
-  planSub: { color: "#FFF9", fontSize: 12 },
-
   activeBadge: {
     backgroundColor: 'rgba(255,255,255,0.25)',
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  activeText: { color: Colors.WHITE, fontSize: 10, paddingTop: 10 },
-
   manageBtn: {
     backgroundColor: 'rgba(255,255,255,0.25)',
     paddingVertical: 10,
     borderRadius: 12,
     alignItems: "center",
   },
-  manageText: { color: Colors.WHITE, fontWeight: "600" },
-
   menuCard: {
-    backgroundColor: Colors.WHITE,
     margin: 20,
-    borderRadius: 20,
     overflow: "hidden",
+    padding: 0,
   },
   menuItem: {
     flexDirection: "row",
@@ -445,14 +499,7 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 14,
   },
-  menuDivider: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEE",
-  },
-  menuText: { flex: 1, fontSize: 15, color: "#222" },
-
   logoutBtn: {
-    backgroundColor: Colors.WHITE,
     marginHorizontal: 20,
     marginBottom: 40,
     padding: 16,
@@ -461,5 +508,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 14,
   },
-  logoutText: { color: "#E63946", fontWeight: "600", fontSize: 15 },
 });

@@ -1,133 +1,307 @@
-import { View, Text, Image, StyleSheet, Alert } from 'react-native';
-import Input from '../../components/shared/Input';
-import Button from '../../components/shared/Button';
-import { Link, router } from 'expo-router';
-import { useContext, useState } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../../services/FirebasConfig';
-import { useConvex } from 'convex/react';
-import { api } from '../../convex/_generated/api';
-import { UserContext } from '../../context/UserContext';
+import {
+  View,
+  Image,
+  StyleSheet,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
+import { Txt, Box } from "../../components/UIComponents";
+import Input from "../../components/shared/Input";
+import Button from "../../components/shared/Button";
+import { Link, router } from "expo-router";
+import { useContext, useState } from "react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../../services/FirebasConfig";
+import { useConvex } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { UserContext } from "../../context/UserContext";
+import { useTheme } from "../../context/ThemeContext";
+import { Ionicons } from "@expo/vector-icons";
 
-export default function SignIn({ navigation }) {
-    const [email, setEmail] = useState();
-    const [password, setPassword] = useState();
-    // Access Convex client
-    const convex = useConvex();
+export default function SignIn() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-    // Global user state
-    const { setUser } = useContext(UserContext);
+  const convex = useConvex();
+  const { setUser } = useContext(UserContext);
+  const { theme } = useTheme();
 
-    const onSignIn = async () => {
-        // Basic frontend validation
-        if (!email || !password) {
-            Alert.alert("Missing fields!", "Enter all field values!");
-            return;
-        }
+  const validateForm = () => {
+    if (!email.trim()) {
+      Alert.alert("Missing Email", "Please enter your email address");
+      return false;
+    }
+    if (!password.trim()) {
+      Alert.alert("Missing Password", "Please enter your password");
+      return false;
+    }
+    if (password.length < 6) {
+      Alert.alert("Invalid Password", "Password must be at least 6 characters");
+      return false;
+    }
+    return true;
+  };
 
-        try {
-            // Sign in using Firebase Authentication
-            const userCredential = await signInWithEmailAndPassword(
-                auth,
-                email,
-                password
-            );
+  const onSignIn = async () => {
+    if (!validateForm()) return;
 
-            const user = userCredential.user;
-            console.log("User signed in:", user);
+    setLoading(true);
 
-            // Fetch the stored user record from Convex
-            // Convex uses email to locate the correct user document
-            const userData = await convex.query(api.Users.GetUser, {
-                email: email
-            });
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email.trim(),
+        password,
+      );
 
-            console.log("Convex signIn:", userData);
+      const user = userCredential.user;
+      console.log("Firebase SignIn success:", user.email);
 
-            // Save user info in global context
-            setUser(userData);
-            router.replace('/(tabs)/Home');
+      // Fetch user data from Convex
+      const userData = await convex.query(api.Users.GetUser, {
+        email: user.email,
+      });
 
-            return { success: true, user };
-        } catch (error) {
-            console.log("Sign-in error:", error.message);
+      if (!userData) {
+        Alert.alert("Account Not Found", "Please create an account first");
+        setLoading(false);
+        return;
+      }
 
-            Alert.alert(
-                "Incorrect Email or Password",
-                "Please enter a valid email and password."
-            );
+      console.log("Convex user data:", userData);
+      setUser(userData);
 
-            return { success: false, error: error.message };
-        }
-    };
+      // Route based on role
+      if (userData?.role === "nutritionist") {
+        router.replace("/(nutritionist)/(tabs)/Dashboard");
+      } else {
+        router.replace("/(tabs)/Home");
+      }
+    } catch (error) {
+      console.error("SignIn error:", error.message);
 
-    return (
-        <View style={styles.container}>
+      // Handle specific Firebase errors
+      switch (error.code) {
+        case "auth/user-not-found":
+          Alert.alert("Account Not Found", "No account found with this email");
+          break;
+        case "auth/wrong-password":
+          Alert.alert("Incorrect Password", "Please check your password");
+          break;
+        case "auth/invalid-email":
+          Alert.alert("Invalid Email", "Please enter a valid email address");
+          break;
+        case "auth/too-many-requests":
+          Alert.alert("Too Many Attempts", "Please try again later");
+          break;
+        default:
+          Alert.alert("Sign In Failed", "Please check your email and password");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Box
+          style={[
+            styles.container,
+            { backgroundColor: theme.colors.background },
+          ]}
+        >
+          {/* Header Section */}
+          <Box bg="transparent" style={styles.header}>
             <Image
-                source={require('../../assets/images/logo.png')}
-                style={styles.logo}
+              source={require("../../assets/images/logo.png")}
+              style={styles.logo}
+              resizeMode="contain"
             />
 
-            <Text style={styles.title}>Welcome Back</Text>
+            <Txt
+              size={theme.fontSize.xxxl}
+              bold
+              color={theme.colors.text}
+              style={styles.title}
+            >
+              Welcome Back
+            </Txt>
 
-            <View style={styles.inputContainer}>
-                <Input placeholder="Email" onChangeText={setEmail} />
-                <Input placeholder="Password" onChangeText={setPassword} password={true} />
+            <Txt
+              size={theme.fontSize.md}
+              color={theme.colors.textSecondary}
+              style={styles.subtitle}
+            >
+              Sign in to continue your health journey
+            </Txt>
+          </Box>
+
+          {/* Form Section */}
+          <Box bg="transparent" style={styles.form}>
+            <Input
+              placeholder="Email address"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              leftIcon={
+                <Ionicons
+                  name="mail-outline"
+                  size={20}
+                  color={theme.colors.textSecondary}
+                />
+              }
+            />
+
+            <Input
+              placeholder="Password"
+              value={password}
+              onChangeText={setPassword}
+              password={!showPassword}
+              leftIcon={
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={20}
+                  color={theme.colors.textSecondary}
+                />
+              }
+              rightIcon={
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={{ padding: 4 }}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color={theme.colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              }
+            />
+
+            {/* Forgot Password Link */}
+            <TouchableOpacity style={styles.forgotPassword}>
+              <Txt
+                size={theme.fontSize.sm}
+                color={theme.colors.primary}
+                style={{ textAlign: "right" }}
+              >
+                Forgot Password?
+              </Txt>
+            </TouchableOpacity>
+
+            {/* Sign In Button */}
+            <Button
+              title="Sign In"
+              onPress={onSignIn}
+              loading={loading}
+              style={{ marginTop: 8 }}
+            />
+          </Box>
+
+          {/* Footer Section */}
+          <Box bg="transparent" style={styles.footer}>
+            <View style={styles.dividerContainer}>
+              <View
+                style={[
+                  styles.divider,
+                  { backgroundColor: theme.colors.divider },
+                ]}
+              />
+              <Txt
+                size={theme.fontSize.sm}
+                color={theme.colors.textSecondary}
+                style={{ marginHorizontal: 10 }}
+              >
+                or
+              </Txt>
+              <View
+                style={[
+                  styles.divider,
+                  { backgroundColor: theme.colors.divider },
+                ]}
+              />
             </View>
 
-            <View style={styles.actionContainer}>
-                <Button title="Sign In" onPress={onSignIn} />
-
-                <View style={styles.row}>
-                    <Text style={styles.text}>Don't have an account?</Text>
-                    <Link href={"/auth/SignUp"}>
-                        <Text style={styles.link}> Create New Account</Text>
-                    </Link>
-                </View>
+            <View style={styles.signupRow}>
+              <Txt size={theme.fontSize.sm} color={theme.colors.textSecondary}>
+                Don't have an account?
+              </Txt>
+              <Link href={"/auth/SignUp"}>
+                <Txt size={theme.fontSize.sm} color={theme.colors.primary} bold>
+                  {" "}
+                  Create Account
+                </Txt>
+              </Link>
             </View>
-
-        </View >
-    );
+          </Box>
+        </Box>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        alignItems: "center",
-        padding: 20,
-    },
-    logo: {
-        width: 150,
-        height: 150,
-        marginTop: 60,
-    },
-    title: {
-        fontSize: 35,
-        fontWeight: "bold",
-        marginTop: 10,
-    },
-    inputContainer: {
-        marginTop: 20,
-        width: "100%",
-    },
-    actionContainer: {
-        marginTop: 15,
-        width: "100%",
-        alignItems: "center",
-    },
-    row: {
-        flexDirection: "row",
-        marginTop: 10,
-        alignItems: "center",
-    },
-    text: {
-        fontSize: 14,
-        color: "#555",
-    },
-    link: {
-        fontSize: 14,
-        color: "#007AFF",
-        fontWeight: "600",
-    }
+  container: {
+    flex: 1,
+    padding: 24,
+    justifyContent: "center",
+  },
+  header: {
+    alignItems: "center",
+    marginBottom: 32,
+  },
+  logo: {
+    width: 120,
+    height: 120,
+    marginBottom: 16,
+  },
+  title: {
+    marginBottom: 8,
+  },
+  subtitle: {
+    textAlign: "center",
+    lineHeight: 22,
+  },
+  form: {
+    width: "100%",
+    gap: 4,
+  },
+  forgotPassword: {
+    alignSelf: "flex-end",
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  footer: {
+    marginTop: 24,
+    alignItems: "center",
+    gap: 16,
+  },
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+  },
+  signupRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
 });

@@ -1,15 +1,74 @@
 import {
   View,
-  Text,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  RefreshControl,
+  ActivityIndicator,
 } from "react-native";
-import React, { useState } from "react";
-import { AntDesign, Ionicons, Feather } from "@expo/vector-icons";
+import React, { useState, useEffect, useCallback, useContext } from "react";
+import { Ionicons, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import { UserContext } from "../../context/UserContext";
+import { useTheme } from "../../context/ThemeContext";
+import { useConvex } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { Txt, Box, Card } from "../../components/UIComponents";
 
 export default function Progress() {
-  const weeklyData = [
+  const { user } = useContext(UserContext);
+  const convex = useConvex();
+  const { theme } = useTheme();
+  
+  const [progressData, setProgressData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Fetch progress data
+  const fetchProgressData = useCallback(async () => {
+    if (!user?._id) return;
+    
+    try {
+      const data = await convex.query(api.Users.GetUserProgress, {
+        userId: user._id,
+      });
+      setProgressData(data);
+    } catch (error) {
+      console.error("Error fetching progress:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?._id]);
+
+  useEffect(() => {
+    fetchProgressData();
+  }, [fetchProgressData]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchProgressData();
+    setRefreshing(false);
+  }, [fetchProgressData]);
+
+  // Dynamic data with fallbacks
+  const userStats = {
+    weight: user?.weight || progressData?.weight || '--',
+    initialWeight: progressData?.initialWeight || user?.initialWeight,
+    streak: progressData?.streak || 0,
+    bmi: user?.weight && user?.height 
+      ? (parseFloat(user.weight) / ((parseFloat(user.height) / 100) ** 2)).toFixed(1)
+      : '--',
+    bodyFat: progressData?.bodyFat || '--',
+    muscleMass: progressData?.muscleMass || '--',
+    waterPercentage: progressData?.waterPercentage || '--',
+  };
+
+  // Calculate weight change
+  const weightChange = userStats.weight !== '--' && userStats.initialWeight
+    ? (parseFloat(userStats.weight) - parseFloat(userStats.initialWeight)).toFixed(1)
+    : null;
+
+  // Weekly adherence data (dynamic or fallback)
+  const weeklyData = progressData?.weeklyAdherence || [
     { day: "Mon", value: 85 },
     { day: "Tue", value: 78 },
     { day: "Wed", value: 92 },
@@ -20,155 +79,271 @@ export default function Progress() {
   ];
 
   const maxValue = Math.max(...weeklyData.map((d) => d.value));
+  const avgAdherence = Math.round(
+    weeklyData.reduce((sum, d) => sum + d.value, 0) / weeklyData.length
+  );
 
-  const achievements = [
-    {
-      id: 1,
-      title: "7-Day Streak",
-      description: "Logged meals for 7 days straight",
-      emoji: "🔥",
-      bgColor: "#ff9c6a",
-    },
-    {
-      id: 2,
-      title: "Protein Goal",
-      description: "Hit protein target 5 days this week",
-      emoji: "💪",
-      bgColor: "#6ab7ff",
-    },
-    {
-      id: 3,
-      title: "Calorie Champion",
-      description: "Stayed within calorie range",
-      emoji: "⭐",
-      bgColor: "#ffd966",
-    },
+  // Achievements (dynamic or fallback)
+  const [achievements, setAchievements] = useState(
+    progressData?.achievements || [
+      {
+        id: 1,
+        title: "7-Day Streak",
+        description: "Logged meals for 7 days straight",
+        emoji: "🔥",
+        bgColor: "#ff9c6a",
+      },
+      {
+        id: 2,
+        title: "Protein Goal",
+        description: "Hit protein target 5 days this week",
+        emoji: "💪",
+        bgColor: "#6ab7ff",
+      },
+      {
+        id: 3,
+        title: "Calorie Champion",
+        description: "Stayed within calorie range",
+        emoji: "⭐",
+        bgColor: "#ffd966",
+      },
+    ]
+  );
+
+  const measurements = [
+    { label: "Body Fat %", value: userStats.bodyFat, unit: "%", icon: "body" },
+    { label: "Muscle Mass", value: userStats.muscleMass, unit: "kg", icon: "arm-flex" },
+    { label: "BMI", value: userStats.bmi, unit: "", icon: "scale-bathroom" },
+    { label: "Water %", value: userStats.waterPercentage, unit: "%", icon: "water" },
   ];
 
-  return (
-    <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Your Progress</Text>
-        <Text style={styles.headerText}>Keep up the great work!</Text>
+  if (loading) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Txt color={theme.colors.textSecondary} style={{ marginTop: 12 }}>
+          Loading your progress...
+        </Txt>
       </View>
+    );
+  }
+
+  return (
+    <ScrollView 
+      style={{ flex: 1, backgroundColor: theme.colors.surface }}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={[theme.colors.primary]}
+          tintColor={theme.colors.primary}
+        />
+      }
+    >
+      {/* Header */}
+      <Box style={[styles.header, { 
+        backgroundColor: theme.colors.background,
+        borderBottomColor: theme.colors.divider 
+      }]}>
+        <Txt size={theme.fontSize.xxl} bold color={theme.colors.text}>
+          Your Progress
+        </Txt>
+        <Txt size={theme.fontSize.sm} color={theme.colors.textSecondary} style={{ marginTop: 4 }}>
+          Keep up the great work! 💪
+        </Txt>
+      </Box>
 
       {/* Stats Cards */}
       <View style={styles.cards}>
-        {/* Weight */}
-        <View style={[styles.card, { backgroundColor: "#0D9E71" }]}>
+        <View style={[styles.statCard, { backgroundColor: theme.colors.accent || theme.colors.GREEN }]}>
           <View style={styles.cardHeader}>
             <View style={styles.iconCircle}>
               <Feather name="trending-down" size={16} color="#fff" />
             </View>
-            <Text style={styles.cardLabel}>Weight</Text>
+            <Txt size={theme.fontSize.xs} color="rgba(255,255,255,0.9)">
+              Weight
+            </Txt>
           </View>
-          <Text style={styles.cardValue}>72.5 kg</Text>
-          <Text style={styles.cardSubText}>-2.3 kg this month</Text>
+          <Txt size={theme.fontSize.xl} bold color="#fff">
+            {userStats.weight} kg
+          </Txt>
+          {weightChange && (
+            <Txt size={theme.fontSize.xs} color="rgba(255,255,255,0.9)" style={{ marginTop: 4 }}>
+              {weightChange > 0 ? '+' : ''}{weightChange} kg total
+            </Txt>
+          )}
         </View>
 
-        {/* Streak */}
-        <View style={[styles.card, { backgroundColor: "#B95FEB" }]}>
+        <View style={[styles.statCard, { backgroundColor: theme.colors.primary }]}>
           <View style={styles.cardHeader}>
             <View style={styles.iconCircle}>
               <Feather name="trending-up" size={16} color="#fff" />
             </View>
-            <Text style={styles.cardLabel}>Streak</Text>
+            <Txt size={theme.fontSize.xs} color="rgba(255,255,255,0.9)">
+              Streak
+            </Txt>
           </View>
-          <Text style={styles.cardValue}>12 days</Text>
-          <Text style={styles.cardSubText}>Personal best!</Text>
+          <Txt size={theme.fontSize.xl} bold color="#fff">
+            {userStats.streak} days
+          </Txt>
+          <Txt size={theme.fontSize.xs} color="rgba(255,255,255,0.9)" style={{ marginTop: 4 }}>
+            {userStats.streak > 7 ? '🔥 Personal best!' : 'Keep going!'}
+          </Txt>
         </View>
       </View>
 
-      {/* Weekly Adherence */}
-      <View style={styles.chartCard}>
+      {/* Weekly Adherence Chart */}
+      <Card style={styles.chartCard}>
         <View style={styles.chartHeader}>
-          <Text style={styles.chartTitle}>Weekly Adherence</Text>
-          <TouchableOpacity style={styles.chartBtn}>
-            <Ionicons name="calendar-outline" size={14} color="#0D9E71" />
-            <Text style={styles.chartBtnText}>This Week</Text>
+          <Txt size={theme.fontSize.md} bold color={theme.colors.text}>
+            Weekly Adherence
+          </Txt>
+          <TouchableOpacity style={[styles.chartBtn, { borderColor: theme.colors.accent || theme.colors.GREEN }]}>
+            <Ionicons name="calendar-outline" size={14} color={theme.colors.accent || theme.colors.GREEN} />
+            <Txt size={theme.fontSize.xs} color={theme.colors.accent || theme.colors.GREEN}>
+              This Week
+            </Txt>
           </TouchableOpacity>
         </View>
 
-        {/* Bars */}
         <View style={styles.barContainer}>
-          {weeklyData.map((d) => (
+          {weeklyData.map((d, index) => (
             <View key={d.day} style={styles.barBox}>
-              <View style={[styles.bar, { height: `${(d.value / maxValue) * 100}%` }]} />
-              <Text style={styles.barLabel}>{d.day}</Text>
+              <Txt 
+                size={theme.fontSize.xs} 
+                color={theme.colors.textSecondary}
+                style={{ marginBottom: 4 }}
+              >
+                {d.value}%
+              </Txt>
+              <View style={[styles.barTrack, { backgroundColor: theme.colors.inputBg }]}>
+                <View style={[
+                  styles.bar, 
+                  { 
+                    height: `${(d.value / maxValue) * 100}%`,
+                    backgroundColor: index >= 5 
+                      ? theme.colors.accent || theme.colors.GREEN 
+                      : theme.colors.primary 
+                  }
+                ]} />
+              </View>
+              <Txt size={theme.fontSize.xs} color={theme.colors.textSecondary} style={{ marginTop: 6 }}>
+                {d.day}
+              </Txt>
             </View>
           ))}
         </View>
 
-        <Text style={styles.chartFooter}>
-          <Text style={styles.chartFooterBold}>86%</Text> average adherence
-        </Text>
-      </View>
+        <Txt size={theme.fontSize.sm} color={theme.colors.textSecondary} style={{ textAlign: 'center' }}>
+          <Txt size={theme.fontSize.sm} bold color={theme.colors.text}>
+            {avgAdherence}%
+          </Txt> average adherence
+        </Txt>
+      </Card>
 
       {/* Achievements */}
-      <Text style={styles.sectionTitle}>Recent Achievements</Text>
-      {achievements.map((a) => (
-        <View key={a.id} style={styles.achievementRow}>
-          <View style={[styles.emojiBox, { backgroundColor: a.bgColor }]}>
-            <Text style={styles.emoji}>{a.emoji}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.achievementTitle}>{a.title}</Text>
-            <Text style={styles.achievementText}>{a.description}</Text>
-          </View>
-        </View>
-      ))}
+      <View style={{ paddingHorizontal: 20 }}>
+        <Txt 
+          size={theme.fontSize.lg} 
+          bold 
+          color={theme.colors.text}
+          style={{ marginTop: 24, marginBottom: 12 }}
+        >
+          Recent Achievements
+        </Txt>
+        
+        {achievements.length === 0 ? (
+          <Card style={[styles.emptyState, { padding: 24 }]}>
+            <MaterialCommunityIcons 
+              name="trophy-outline" 
+              size={40} 
+              color={theme.colors.textSecondary} 
+            />
+            <Txt color={theme.colors.textSecondary} style={{ textAlign: 'center', marginTop: 8 }}>
+              No achievements yet. Keep tracking your meals!
+            </Txt>
+          </Card>
+        ) : (
+          achievements.map((a) => (
+            <Card key={a.id} style={[styles.achievementRow, { padding: 14 }]}>
+              <View style={[styles.emojiBox, { backgroundColor: a.bgColor }]}>
+                <Txt size={theme.fontSize.xl}>{a.emoji}</Txt>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Txt size={theme.fontSize.sm} bold color={theme.colors.text}>
+                  {a.title}
+                </Txt>
+                <Txt size={theme.fontSize.xs} color={theme.colors.textSecondary}>
+                  {a.description}
+                </Txt>
+              </View>
+            </Card>
+          ))
+        )}
+      </View>
 
-      {/* Measurements */}
-      <View style={styles.measureCard}>
-        <Text style={styles.measureTitle}>Body Measurements</Text>
-
-        {[
-          ["Body Fat %", "18.2%"],
-          ["Muscle Mass", "58.4 kg"],
-          ["BMI", "22.1"],
-          ["Water %", "62.8%"],
-        ].map(([label, value], i, arr) => (
+      {/* Body Measurements */}
+      <Card style={[styles.measureCard, { marginTop: 20, marginBottom: 50 }]}>
+        <Txt size={theme.fontSize.md} bold color={theme.colors.text} style={{ marginBottom: 14 }}>
+          Body Measurements
+        </Txt>
+        
+        {measurements.map((item, i) => (
           <View
-            key={label}
+            key={item.label}
             style={[
               styles.measureRow,
-              i !== arr.length - 1 && styles.measureDivider,
+              i !== measurements.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.colors.divider },
             ]}
           >
-            <Text style={styles.measureLabel}>{label}</Text>
-            <Text style={styles.measureValue}>{value}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <MaterialCommunityIcons 
+                name={item.icon} 
+                size={18} 
+                color={theme.colors.textSecondary} 
+              />
+              <Txt size={theme.fontSize.sm} color={theme.colors.textSecondary}>
+                {item.label}
+              </Txt>
+            </View>
+            <Txt size={theme.fontSize.sm} bold color={theme.colors.text}>
+              {item.value !== '--' ? `${item.value}${item.unit}` : '--'}
+            </Txt>
           </View>
         ))}
-      </View>
+      </Card>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { backgroundColor: "#F5F5F5" },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   header: {
-    backgroundColor: "#fff",
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
   },
-  headerTitle: { fontSize: 22, fontWeight: "700", marginBottom: 4 },
-  headerText: { color: "#666" },
-
   cards: {
     marginTop: 16,
     paddingHorizontal: 20,
     flexDirection: "row",
     gap: 12,
   },
-
-  card: {
+  statCard: {
     flex: 1,
     padding: 16,
     borderRadius: 18,
   },
-  cardHeader: { flexDirection: "row", alignItems: "center", gap: 6 },
+  cardHeader: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    gap: 6,
+    marginBottom: 8,
+  },
   iconCircle: {
     width: 30,
     height: 30,
@@ -177,63 +352,55 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  cardLabel: { color: "#fff", fontSize: 12 },
-  cardValue: { color: "#fff", fontSize: 20, fontWeight: "700" },
-  cardSubText: {
-    marginTop: 4,
-    color: "#fff",
-    fontSize: 12,
-    opacity: 0.9,
-  },
-
   chartCard: {
     marginTop: 24,
-    backgroundColor: "#fff",
     marginHorizontal: 20,
     padding: 20,
-    borderRadius: 18,
   },
   chartHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 16,
   },
-  chartTitle: { fontWeight: "700", color: "#222" },
-  chartBtn: { flexDirection: "row", alignItems: "center", gap: 6 },
-  chartBtnText: { color: "#0D9E71", fontSize: 13 },
-
+  chartBtn: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    gap: 6,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
   barContainer: {
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
-    height: 130,
+    height: 150,
     marginBottom: 12,
+    gap: 4,
   },
-  barBox: { alignItems: "center", flex: 1 },
-  bar: {
-    width: "50%",
-    backgroundColor: "#0D9E71",
+  barBox: { 
+    alignItems: "center", 
+    flex: 1,
+  },
+  barTrack: {
+    width: "100%",
+    height: 100,
     borderRadius: 6,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
   },
-  barLabel: { fontSize: 10, color: "#666", marginTop: 6 },
-
-  chartFooter: { textAlign: "center", color: "#666" },
-  chartFooterBold: { color: "#222", fontWeight: "700" },
-
-  sectionTitle: {
-    fontWeight: "700",
-    fontSize: 18,
-    marginTop: 24,
-    marginBottom: 12,
-    marginLeft: 20,
-    color: "#222",
+  bar: {
+    width: "100%",
+    borderRadius: 6,
+    minHeight: 4,
   },
-
+  emptyState: {
+    alignItems: 'center',
+    gap: 8,
+  },
   achievementRow: {
-    backgroundColor: "#fff",
-    marginHorizontal: 20,
-    padding: 14,
-    borderRadius: 14,
     flexDirection: "row",
     gap: 12,
     marginBottom: 10,
@@ -245,25 +412,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  emoji: { fontSize: 22 },
-  achievementTitle: { fontWeight: "600" },
-  achievementText: { fontSize: 12, color: "#666" },
-
   measureCard: {
-    marginTop: 20,
-    backgroundColor: "#fff",
     marginHorizontal: 20,
     padding: 16,
-    borderRadius: 18,
-    marginBottom: 50,
   },
-  measureTitle: { fontWeight: "700", marginBottom: 14, fontSize: 16 },
   measureRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 10,
+    alignItems: 'center',
+    paddingVertical: 12,
   },
-  measureDivider: { borderBottomWidth: 1, borderBottomColor: "#eee" },
-  measureLabel: { color: "#666" },
-  measureValue: { fontWeight: "600", color: "#222" },
 });

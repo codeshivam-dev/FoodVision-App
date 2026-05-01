@@ -1,203 +1,152 @@
-import { View, Text, ScrollView, StyleSheet, Image } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
+import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "convex/react";
-
+import { useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import GenerateRecipeCard from "../../components/home/GenerateRecipeCard";
 import Button from "../../components/shared/Button";
-import Colors from "../../shared/Colors";
+import { Txt, Box, Card } from "../../components/UIComponents";
+import { useTheme } from "../../context/ThemeContext";
 import { api } from "../../convex/_generated/api";
-import { useRouter } from "expo-router";
+import MealCard from "../../components/meal/MealCard";
 
 export default function Meals() {
-  const recipeList = useQuery(api.Recipes.GetAllRecipes);
   const router = useRouter();
+  const { theme } = useTheme();
+  const recipeList = useQuery(api.Recipes.GetAllRecipes);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    // Convex automatically re-fetches when query changes
+    setTimeout(() => setRefreshing(false), 500);
+  }, []);
 
   return (
     <ScrollView
-      style={styles.container}
+      style={{ flex: 1, backgroundColor: theme.colors.surface }}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={[theme.colors.primary]}
+          tintColor={theme.colors.primary}
+        />
+      }
     >
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Discover Recipes</Text>
-      </View>
+      <Box style={[styles.header, { 
+        backgroundColor: theme.colors.background,
+        borderBottomColor: theme.colors.divider 
+      }]}>
+        <Txt size={theme.fontSize.xxl} bold color={theme.colors.text}>
+          Discover Recipes
+        </Txt>
+      </Box>
 
-      {/* AI Recommendation */}
-      <View style={styles.aiBanner}>
+      {/* AI Recipe Generator */}
+      <Box style={{ margin: 16, marginBottom: 8 }}>
         <GenerateRecipeCard />
-      </View>
+      </Box>
 
-      {/* Meal Suggestions */}
+      {/* Suggested Meals Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Suggested Meals</Text>
+        <Txt 
+          size={theme.fontSize.lg} 
+          bold 
+          color={theme.colors.text}
+          style={{ marginBottom: 14 }}
+        >
+          Suggested Meals
+        </Txt>
 
-        {/* Loading / Empty State */}
-        {!recipeList && (
-          <Text style={styles.loadingText}>Loading recipes...</Text>
+        {/* Loading State */}
+        {recipeList === undefined && (
+          <View style={styles.centerState}>
+            <Txt color={theme.colors.textSecondary}>
+              Loading recipes...
+            </Txt>
+          </View>
         )}
 
-        {recipeList?.map((meal) => (
-          <View key={meal._id} style={styles.mealCard}>
-            <Image
-              source={{
-                uri: meal.imageURI || "https://via.placeholder.com/400x300",
-              }}
-              style={styles.mealImage}
+        {/* Empty State */}
+        {recipeList?.length === 0 && (
+          <Card style={styles.centerState}>
+            <Ionicons 
+              name="restaurant-outline" 
+              size={48} 
+              color={theme.colors.textSecondary} 
             />
+            <Txt 
+              color={theme.colors.textSecondary}
+              style={{ textAlign: 'center', marginTop: 12 }}
+            >
+              No recipes available yet
+            </Txt>
+            <Button 
+              title="Generate AI Recipe"
+              onPress={() => router.push('/generate-ai-recipe')}
+              style={{ marginTop: 12, width: '70%' }}
+            />
+          </Card>
+        )}
 
-            <View style={styles.mealContent}>
-              <Text style={styles.mealName}>
-                {meal.recipeName || "Unnamed Recipe"}
-              </Text>
-
-              {/* Nutrition */}
-              <View style={styles.nutritionRow}>
-                <View style={styles.nutBox}>
-                  <Text style={styles.nutLabel}>Cal</Text>
-                  <Text style={styles.nutValue}>
-                    {meal?.jsonData?.calories ?? "--"}
-                  </Text>
-                </View>
-
-                <View style={styles.nutBox}>
-                  <Text style={styles.nutLabel}>Prot</Text>
-                  <Text style={styles.nutValue}>
-                    {meal?.jsonData?.protien ?? "--"}g
-                  </Text>
-                </View>
-
-                <View style={styles.nutBox}>
-                  <Text style={styles.nutLabel}>Carb</Text>
-                  <Text style={styles.nutValue}>
-                    {meal?.jsonData?.carbs ?? "--"}g
-                  </Text>
-                </View>
-
-                <View style={styles.nutBox}>
-                  <Text style={styles.nutLabel}>Fat</Text>
-                  <Text style={styles.nutValue}>
-                    {meal?.jsonData?.fats ?? "--"}g
-                  </Text>
-                </View>
-              </View>
-
-              {/* Prep Time */}
-              <View style={styles.timeBadge}>
-                <MaterialIcons name="schedule" size={14} color="#555" />
-                <Text style={styles.timeText}>
-                  {meal?.jsonData?.cookTime ?? "N/A"} min
-                </Text>
-              </View>
-
-              <Button title="Explore Recipe Details" onPress={()=>router.push({
-                pathname: "/recipe-detail",
-                params: {
-                    recipeId: meal._id,
-                }
-              })}/>
-            </View>
-          </View>
+        {/* Recipe List */}
+        {recipeList?.map((meal) => (
+          <MealCard 
+            key={meal._id} 
+            meal={meal} 
+            onPress={() => router.push({
+              pathname: "/recipe-detail",
+              params: { recipeId: meal._id }
+            })}
+          />
         ))}
       </View>
+
+      {/* Bottom Spacing */}
+      <View style={{ height: 20 }} />
     </ScrollView>
   );
 }
 
-/* ---------------- Styles ---------------- */
-
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: "#F5F5F5",
-  },
-
   header: {
-    backgroundColor: "#FFF",
     paddingHorizontal: 20,
-    paddingVertical: 24,
+    paddingTop: 20,
+    paddingBottom: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#EAEAEA",
   },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-  },
-
-  aiBanner: {
-    margin: 5,
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: Colors.WHITE,
-  },
-
   section: {
     paddingHorizontal: 20,
+    paddingTop: 8,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 12,
+  centerState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    gap: 8,
   },
-
-  loadingText: {
-    textAlign: "center",
-    color: "#777",
-    marginVertical: 20,
-  },
-
-  mealCard: {
-    backgroundColor: "#FFF",
-    borderRadius: 18,
-    marginBottom: 16,
-    overflow: "hidden",
-  },
-  mealImage: {
-    width: "100%",
-    height: 160,
-    backgroundColor: "#DDD",
-  },
-  mealContent: {
-    padding: 14,
-  },
-  mealName: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-
-  nutritionRow: {
+  nutritionGrid: {
     flexDirection: "row",
     justifyContent: "space-between",
+    marginBottom: 12,
+    gap: 6,
   },
   nutBox: {
-    width: "23%",
-    backgroundColor: "#F2F3F4",
-    padding: 8,
-    borderRadius: 8,
+    flex: 1,
+    padding: 10,
     alignItems: "center",
+    gap: 2,
   },
-  nutLabel: {
-    fontSize: 10,
-    color: "#666",
-  },
-  nutValue: {
-    fontSize: 12,
-    fontWeight: "600",
-  },
-
   timeBadge: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 10,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E0E0E0",
     alignSelf: "flex-start",
-  },
-  timeText: {
-    fontSize: 12,
-    marginLeft: 4,
-    color: "#555",
   },
 });

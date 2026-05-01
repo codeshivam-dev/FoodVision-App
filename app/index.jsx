@@ -1,107 +1,170 @@
-import { Dimensions, Image, Text, View } from "react-native";
-import Colors from '../shared/Colors'
-import Button from './../components/shared/Button'
+import { Dimensions, Image, StatusBar, StyleSheet } from "react-native";
+import { Box, Txt } from "../components/UIComponents";
+import Button from "../components/shared/Button";
 import { useRouter } from "expo-router";
-import { useContext } from "react";
+import { useContext, useEffect, useState } from "react";
 import { UserContext } from "../context/UserContext";
+import { useTheme } from "../context/ThemeContext";
 import { useConvex } from "convex/react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../services/FirebasConfig";
 import { api } from "../convex/_generated/api";
-import { useEffect } from "react";
+
+const { width, height } = Dimensions.get("screen");
 
 export default function Index() {
   const router = useRouter();
-  const { user, setUser } = useContext(UserContext);
+  const { setUser } = useContext(UserContext);
   const convex = useConvex();
+  const { theme } = useTheme();
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (userInfo) => {
       try {
-        console.log(userInfo?.email);
+        if (!userInfo?.email) {
+          setIsLoading(false);
+          return;
+        }
+
         const userData = await convex.query(api.Users.GetUser, {
-          email: userInfo?.email
+          email: userInfo.email,
         });
 
-        console.log("Convex signIn:", userData);
-        setUser(userData);
-        if (userData?.role === 'nutritionist') {
-          router.replace('/(nutritionist)/(tabs)/Dashboard');
-        } else if(userData?.role === 'user') {
-          router.replace('/(tabs)/Home');
+        if (userData) {
+          setUser(userData);
+
+          if (userData?.role === "nutritionist") {
+            router.replace("/(nutritionist)/(tabs)/Dashboard");
+          } else if (userData?.role === "user") {
+            router.replace("/(tabs)/Home");
+          }
         } else {
-          router.replace('/auth/SignUp')
+          setIsLoading(false);
         }
+      } catch (error) {
+        console.error("Auth check failed:", error.message);
+        setIsLoading(false);
       }
-      catch (error) {
-        // console.error("Error fetching user data:", error);
-        router.replace('/auth/SignIn');
-      }
-    })
+    });
 
-    return () => unsubscribe();
-  }, [])
+    const timer = setTimeout(() => setIsLoading(false), 500);
 
+    return () => {
+      unsubscribe();
+      clearTimeout(timer);
+    };
+  }, []);
+
+  if (isLoading) return null;
 
   return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <Image source={require('../assets/images/landing.png')} style={{
-        width: "100%",
-        height: Dimensions.get("screen").height,
-      }} />
+    <Box style={styles.container}>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor="transparent"
+        translucent
+      />
 
-      <View style={{
-        position: "absolute",
-        height: Dimensions.get("screen").height,
-        backgroundColor: "#0707075e",
-        width: "100%",
-        display: "flex",
-        alignItems: "center",
-        padding: 20
-      }}>
+      {/* Background Image */}
+      <Image
+        source={require("../assets/images/landing.png")}
+        style={styles.backgroundImage}
+        resizeMode="cover"
+      />
 
-        <Image source={require('../assets/images/logo.png')}
-          style={{
-            width: 170,
-            height: 150,
-            marginTop: 160
-          }}
+      {/* Overlay */}
+      <Box style={[styles.overlay, { backgroundColor: theme.colors.overlay }]}>
+        <Box bg="transparent" style={styles.content}>
+          <Image
+            source={require("../assets/images/logo.png")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+
+          <Txt
+            size={theme.fontSize.xxxl}
+            bold
+            color={theme.colors.white}
+            style={styles.title}
+          >
+            AI Diet Planner
+          </Txt>
+
+          <Txt
+            size={theme.fontSize.lg}
+            color={theme.colors.white}
+            style={styles.subtitle}
+          >
+            Craft delicious, healthy meal plans tailored just for you. Achieve
+            your goals with ease!
+          </Txt>
+        </Box>
+      </Box>
+
+      {/* Bottom Section */}
+      <Box bg="transparent" style={styles.bottomSection}>
+        <Button
+          title="Get Started"
+          onPress={() => router.push("/auth/SignIn")}
         />
 
-        <Text style={{
-          fontSize: 30,
-          fontWeight: "bold",
-          color: Colors.WHITE
-        }}>Ai Diet Planner</Text>
-
-        <Text style={{
-          textAlign: "center",
-          marginHorizontal: 20,
-          color: Colors.WHITE,
-          fontSize: 20,
-          marginTop: 15,
-          opacity: 0.8
-        }}>
-          Craft delecious, Healthy, Mean plans tailored just for you. Achieve your goal with ease!
-        </Text>
-      </View>
-
-      <View style={{
-        position: 'absolute',
-        width: "100%",
-        bottom: 50,
-        padding: 20
-      }}>
-        <Button title={'Get Started'}
-          onPress={() => router.push('/auth/SignIn')}
-        />
-      </View>
-    </View>
+        <Txt
+          size={theme.fontSize.xs}
+          color={theme.colors.white}
+          style={styles.footer}
+        >
+          Powered by AI • Personalized Plans
+        </Txt>
+      </Box>
+    </Box>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
+  backgroundImage: {
+    position: "absolute",
+    width: width,
+    height: height,
+  },
+  overlay: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  content: {
+    alignItems: "center",
+    gap: 16,
+  },
+  logo: {
+    width: 160,
+    height: 140,
+    marginBottom: 8,
+  },
+  title: {
+    textAlign: "center",
+  },
+  subtitle: {
+    textAlign: "center",
+    lineHeight: 28,
+    opacity: 0.9,
+    marginTop: 4,
+  },
+  bottomSection: {
+    position: "absolute",
+    bottom: 0,
+    width: "100%",
+    paddingHorizontal: 24,
+    paddingBottom: 50,
+    gap: 12,
+  },
+  footer: {
+    textAlign: "center",
+    opacity: 0.6,
+    letterSpacing: 1,
+  },
+});

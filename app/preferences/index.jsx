@@ -1,243 +1,401 @@
+// app/preferences/index.jsx
 import React, { useContext, useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Alert } from "react-native";
+import { View, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import Button from "../../components/shared/Button";
-import Input from "../../components/shared/Input";
-import { useMutation } from 'convex/react'
-import { api } from './../../convex/_generated/api'
+import { Txt, Box, Card } from "../../components/UIComponents";
+import { useTheme } from "../../context/ThemeContext";
+import { useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import { useRouter } from "expo-router";
-import { UserContext } from './../../context/UserContext'
+import { UserContext } from '../../context/UserContext';
 import { calculateCaloriesAI } from "../../services/AiModel";
 import Prompt from "../../shared/Prompt";
+import LoadingDialog from "../../components/shared/LoadingDialog";
 
 export default function Preference() {
-  const [weight, setWeight] = useState(null);
-  const [height, setHeight] = useState(null);
+  const { theme } = useTheme();
+  const { user, setUser } = useContext(UserContext);
+  const router = useRouter();
+  const UpdateUserPref = useMutation(api.Users.UpdateUserPref);
+  
+  const [weight, setWeight] = useState("");
+  const [height, setHeight] = useState("");
+  const [age, setAge] = useState("");
   const [gender, setGender] = useState(null);
   const [goal, setGoal] = useState(null);
-  const { user, setUser } = useContext(UserContext)
-  const router = useRouter();
-  const UpdateUserPref = useMutation(api.Users.UpdateUserPref)
+  const [loading, setLoading] = useState(false);
+
+  const genderOptions = [
+    { key: "male", icon: "♂", label: "Male", icon2: "gender-male" },
+    { key: "female", icon: "♀", label: "Female", icon2: "gender-female" },
+    { key: "other", icon: "⚪", label: "Other", icon2: "gender-transgender" },
+  ];
+
+  const goalOptions = [
+    { 
+      key: "lose", 
+      title: "Lose Weight", 
+      subtitle: "Trim down and feel lighter",
+      icon: "trending-down",
+      color: theme.colors.error 
+    },
+    { 
+      key: "gain", 
+      title: "Gain Weight", 
+      subtitle: "Build mass healthily",
+      icon: "trending-up",
+      color: theme.colors.blue 
+    },
+    { 
+      key: "muscle", 
+      title: "Build Muscle", 
+      subtitle: "Increase strength and definition",
+      icon: "barbell",
+      color: theme.colors.accent || theme.colors.GREEN 
+    },
+  ];
 
   const onContinue = async () => {
-    console.log("clicked")
-    if (!weight || !height || !gender || !goal) {
-      Alert.alert("Missing Fields!", "Please fill all the fields");
+    if (!weight || !height || !age || !gender || !goal) {
+      Alert.alert(
+        "Missing Information",
+        "Please fill in all fields to create your personalized plan.",
+        [{ text: "OK" }]
+      );
       return;
     }
 
-    const data = {
-      uid: user?._id,
-      weight: weight,
-      height: height,
-      gender: gender,
-      goal: goal
+    if (isNaN(weight) || isNaN(height) || isNaN(age)) {
+      Alert.alert(
+        "Invalid Input",
+        "Please enter valid numbers for weight, height, and age.",
+        [{ text: "OK" }]
+      );
+      return;
     }
 
-    // ** CAlORIES AND PROTEIN CALCULATING VIA AI **
-    const PROMPT = JSON.stringify(data) + " " + Prompt.CALORIES_PROMPT;
-    // console.log(PROMPT)
-    const AIResult = await calculateCaloriesAI(PROMPT);
-    // console.log("Ai result = ", AIResult)
-    const JSONContent = JSON.parse(AIResult.replace('```json', '').replace('```', ''));
-    // console.log(JSONContent)
+    setLoading(true);
 
-    const result = await UpdateUserPref({
-      ...data,
-      ...JSONContent
-    })
-    console.log("Update", data)
-    setUser(prev => ({
-      ...prev,
-      ...data
-    }))
-    router.replace('/(tabs)/Home')
-    return result;
-  }
+    try {
+      const data = {
+        uid: user?._id,
+        weight: weight,
+        height: height,
+        age: age,
+        gender: gender,
+        goal: goal,
+      };
+
+      // Calculate calories via AI
+      const PROMPT = JSON.stringify(data) + " " + Prompt.CALORIES_PROMPT;
+      const AIResult = await calculateCaloriesAI(PROMPT);
+      
+      const JSONContent = JSON.parse(
+        AIResult.replace(/```json/g, "").replace(/```/g, "").trim()
+      );
+
+      // Update user preferences in Convex
+      await UpdateUserPref({
+        ...data,
+        ...JSONContent,
+      });
+
+      // Update local user context
+      setUser(prev => ({
+        ...prev,
+        ...data,
+        ...JSONContent,
+      }));
+
+      // Navigate to Home
+      router.replace('/(tabs)/Home');
+
+    } catch (error) {
+      console.error("Preference update error:", error);
+      
+      Alert.alert(
+        "Something went wrong",
+        "Unable to save your preferences. Please try again.",
+        [
+          { text: "Try Again", onPress: onContinue },
+          { text: "Cancel", style: "cancel" },
+        ]
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <View style={styles.container}>
-
-      {/* Title */}
-      <Text style={styles.title}>Tell Us About Yourself</Text>
-      <Text style={styles.subtitle}>
-        This helps us create your personalized meal plan.
-      </Text>
-
-      {/* Weight + Height */}
-      <View style={styles.row}>
-        <View style={{ flex: 1 }}>
-          <Input placeholder={"e.g 70"} onChangeText={setWeight} label="Weight (kg)" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Input placeholder={"e.g 5.10"} onChangeText={setHeight} label="Height (ft)" />
-        </View>
-      </View>
-
-      {/* Gender */}
-      <Text style={styles.sectionTitle}>Gender</Text>
-
-      <View style={styles.row}>
-        <TouchableOpacity
-          style={[styles.genderBox, gender === "male" && styles.genderSelected]}
-          onPress={() => setGender("male")}
-        >
-          <Text style={styles.genderEmoji}>♂</Text>
-          <Text>Male</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.genderBox, gender === "female" && styles.genderSelected]}
-          onPress={() => setGender("female")}
-        >
-          <Text style={styles.genderEmoji}>♀</Text>
-          <Text>Female</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.genderBox, gender === "other" && styles.genderSelected]}
-          onPress={() => setGender("other")}
-        >
-          <Text style={styles.genderEmoji}>⚪</Text>
-          <Text>Other</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Goal */}
-      <Text style={styles.sectionTitle}>What's Your Goal?</Text>
-
-      <TouchableOpacity
-        style={[styles.goalCard, goal === "lose" && styles.goalSelected]}
-        onPress={() => setGoal("lose")}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
+      <ScrollView
+        style={{ flex: 1, backgroundColor: theme.colors.background }}
+        contentContainerStyle={{ flexGrow: 1 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.goalIconRed} />
-        <View>
-          <Text style={styles.goalTitle}>Lose Weight</Text>
-          <Text style={styles.goalSubtitle}>Trim down and feel lighter</Text>
-        </View>
-      </TouchableOpacity>
+        <Box style={styles.container}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={[styles.headerIcon, { backgroundColor: theme.colors.primaryLight }]}>
+              <Ionicons name="fitness-outline" size={28} color={theme.colors.primary} />
+            </View>
+            <Txt size={theme.fontSize.xxl} bold color={theme.colors.text} style={styles.title}>
+              Tell Us About Yourself
+            </Txt>
+            <Txt size={theme.fontSize.sm} color={theme.colors.textSecondary} style={styles.subtitle}>
+              This helps us create your personalized meal plan
+            </Txt>
+          </View>
 
-      <TouchableOpacity
-        style={[styles.goalCard, goal === "gain" && styles.goalSelected]}
-        onPress={() => setGoal("gain")}
-      >
-        <View style={styles.goalIconBlue} />
-        <View>
-          <Text style={styles.goalTitle}>Gain Weight</Text>
-          <Text style={styles.goalSubtitle}>Build mass healthily</Text>
-        </View>
-      </TouchableOpacity>
+          {/* Form Fields */}
+          <Card style={{ padding: 20, gap: 16 }}>
+            {/* Weight & Height */}
+            <View style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <Txt size={theme.fontSize.sm} bold color={theme.colors.text} style={styles.label}>
+                  Weight (kg)
+                </Txt>
+                <View style={[styles.inputWrapper, { 
+                  backgroundColor: theme.colors.inputBg,
+                  borderColor: theme.colors.inputBorder,
+                }]}>
+                  <Ionicons name="scale-outline" size={18} color={theme.colors.textSecondary} />
+                  <TextInput
+                    placeholder="e.g., 70"
+                    value={weight}
+                    onChangeText={setWeight}
+                    keyboardType="numeric"
+                    style={[styles.input, { color: theme.colors.text }]}
+                    placeholderTextColor={theme.colors.textSecondary}
+                    maxLength={4}
+                  />
+                </View>
+              </View>
 
-      <TouchableOpacity
-        style={[styles.goalCard, goal === "muscle" && styles.goalSelected]}
-        onPress={() => setGoal("muscle")}
-      >
-        <View style={styles.goalIconGreen} />
-        <View>
-          <Text style={styles.goalTitle}>Build Muscle</Text>
-          <Text style={styles.goalSubtitle}>Increase strength and definition</Text>
-        </View>
-      </TouchableOpacity>
-      <View>
-        <Button title="Continue" style={{ marginTop: 25 }} onPress={onContinue} />
-      </View>
+              <View style={{ flex: 1 }}>
+                <Txt size={theme.fontSize.sm} bold color={theme.colors.text} style={styles.label}>
+                  Height (cm)
+                </Txt>
+                <View style={[styles.inputWrapper, { 
+                  backgroundColor: theme.colors.inputBg,
+                  borderColor: theme.colors.inputBorder,
+                }]}>
+                  <Ionicons name="resize-outline" size={18} color={theme.colors.textSecondary} />
+                  <TextInput
+                    placeholder="e.g., 170"
+                    value={height}
+                    onChangeText={setHeight}
+                    keyboardType="numeric"
+                    style={[styles.input, { color: theme.colors.text }]}
+                    placeholderTextColor={theme.colors.textSecondary}
+                    maxLength={3}
+                  />
+                </View>
+              </View>
+            </View>
 
-    </View>
+            {/* Age */}
+            <View>
+              <Txt size={theme.fontSize.sm} bold color={theme.colors.text} style={styles.label}>
+                Age
+              </Txt>
+              <View style={[styles.inputWrapper, { 
+                backgroundColor: theme.colors.inputBg,
+                borderColor: theme.colors.inputBorder,
+              }]}>
+                <Ionicons name="calendar-outline" size={18} color={theme.colors.textSecondary} />
+                <TextInput
+                  placeholder="e.g., 25"
+                  value={age}
+                  onChangeText={setAge}
+                  keyboardType="numeric"
+                  style={[styles.input, { color: theme.colors.text }]}
+                  placeholderTextColor={theme.colors.textSecondary}
+                  maxLength={2}
+                />
+              </View>
+            </View>
+          </Card>
+
+          {/* Gender Selection */}
+          <View style={styles.section}>
+            <Txt size={theme.fontSize.md} bold color={theme.colors.text} style={styles.sectionTitle}>
+              Gender
+            </Txt>
+            <View style={styles.row}>
+              {genderOptions.map((opt) => (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[styles.genderBox, { 
+                    borderColor: gender === opt.key ? theme.colors.primary : theme.colors.border,
+                    backgroundColor: gender === opt.key ? theme.colors.primaryLight : theme.colors.card,
+                  }]}
+                  onPress={() => setGender(opt.key)}
+                  activeOpacity={0.7}
+                >
+                  <Txt size={24} style={{ marginBottom: 4 }}>
+                    {opt.icon}
+                  </Txt>
+                  <Txt 
+                    size={theme.fontSize.xs} 
+                    bold={gender === opt.key}
+                    color={gender === opt.key ? theme.colors.primary : theme.colors.textSecondary}
+                  >
+                    {opt.label}
+                  </Txt>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Goal Selection */}
+          <View style={styles.section}>
+            <Txt size={theme.fontSize.md} bold color={theme.colors.text} style={styles.sectionTitle}>
+              What's Your Goal?
+            </Txt>
+            
+            <View style={{ gap: 10 }}>
+              {goalOptions.map((opt) => (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[styles.goalCard, { 
+                    borderColor: goal === opt.key ? theme.colors.primary : theme.colors.border,
+                    backgroundColor: goal === opt.key ? theme.colors.primaryLight : theme.colors.card,
+                  }]}
+                  onPress={() => setGoal(opt.key)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.goalIcon, { backgroundColor: opt.color + '20' }]}>
+                    <MaterialCommunityIcons 
+                      name={opt.icon} 
+                      size={20} 
+                      color={opt.color} 
+                    />
+                  </View>
+                  
+                  <View style={{ flex: 1 }}>
+                    <Txt size={theme.fontSize.md} bold color={theme.colors.text}>
+                      {opt.title}
+                    </Txt>
+                    <Txt size={theme.fontSize.xs} color={theme.colors.textSecondary}>
+                      {opt.subtitle}
+                    </Txt>
+                  </View>
+
+                  {goal === opt.key && (
+                    <Ionicons 
+                      name="checkmark-circle" 
+                      size={22} 
+                      color={theme.colors.primary} 
+                    />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Continue Button */}
+          <View style={styles.buttonContainer}>
+            <Button 
+              title="Continue"
+              onPress={onContinue}
+              loading={loading}
+            />
+          </View>
+
+          {/* Bottom Spacing */}
+          <View style={{ height: 40 }} />
+        </Box>
+      </ScrollView>
+
+      {/* Loading Dialog */}
+      <LoadingDialog 
+        loading={loading} 
+        message="Creating your personalized plan..."
+      />
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 50,
-    padding: 30,
-    backgroundColor: "#fff",
-    flex: 1,
+    padding: 20,
+    paddingTop: 40,
   },
-
+  header: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  headerIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
   title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    textAlign: "center",
+    textAlign: 'center',
+    marginBottom: 8,
   },
   subtitle: {
-    textAlign: "center",
-    color: "#777",
-    marginBottom: 20,
+    textAlign: 'center',
+    lineHeight: 20,
   },
-
-  /** FORM **/
+  label: {
+    marginBottom: 6,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 16,
+  },
   row: {
-    display: "flex",
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: 10,
-    marginBottom: 15,
   },
-
+  section: {
+    marginTop: 20,
+  },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 10,
+    marginBottom: 12,
   },
-
-  /** GENDER BOXES **/
   genderBox: {
-    width: "32%",
-    paddingVertical: 15,
-    borderWidth: 1,
-    borderColor: "#ddd",
+    flex: 1,
+    paddingVertical: 16,
+    borderWidth: 1.5,
     borderRadius: 12,
-    alignItems: "center",
-    backgroundColor: "#fff",
+    alignItems: 'center',
   },
-  genderSelected: {
-    borderColor: "#6a11cb",
-    backgroundColor: "#f3e8ff",
-  },
-  genderEmoji: {
-    fontSize: 28,
-    marginBottom: 5,
-  },
-
-  /** GOAL CARDS **/
   goalCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 15,
-    borderWidth: 1,
-    borderColor: "#ddd",
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderWidth: 1.5,
     borderRadius: 12,
-    marginBottom: 10,
-    backgroundColor: "#fff",
-    gap: 15,
+    gap: 14,
   },
-  goalSelected: {
-    borderColor: "#6a11cb",
-    backgroundColor: "#f3e8ff",
+  goalIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  goalIconRed: {
-    width: 30,
-    height: 30,
-    backgroundColor: "#ef4444",
-    borderRadius: 8,
-  },
-  goalIconBlue: {
-    width: 30,
-    height: 30,
-    backgroundColor: "#3b82f6",
-    borderRadius: 8,
-  },
-  goalIconGreen: {
-    width: 30,
-    height: 30,
-    backgroundColor: "#22c55e",
-    borderRadius: 8,
-  },
-
-  goalTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  goalSubtitle: {
-    fontSize: 13,
-    color: "#666",
+  buttonContainer: {
+    marginTop: 24,
   },
 });
