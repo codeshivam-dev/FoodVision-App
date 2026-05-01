@@ -1,134 +1,236 @@
-# **FoodVision – AI Powered Diet Planner**
+# 🥗 FoodVision – AI-Powered Diet & Consultancy Platform
 
-FoodVision is a mobile application that provides personalized diet planning using AI.
-It helps users plan meals, track macros, and get nutrition guidance based on their goals, preferences, and restrictions.
+<div align="center">
 
-The app focuses on **practical, personalized nutrition** instead of generic diet advice.
+![FoodVision Banner](https://img.shields.io/badge/FoodVision-AI%20Diet%20Planner-8837ff?style=for-the-badge&logo=appstore&logoColor=white)
+![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-blue?style=flat-square)
+![Framework](https://img.shields.io/badge/Framework-Expo%20React%20Native-000020?style=flat-square&logo=expo)
+![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
+
+**AI-powered personalized nutrition with professional consultancy – all in one app**
+
+</div>
+
+---
+
+## **Overview**
+
+FoodVision is a comprehensive mobile application that revolutionizes personal nutrition by combining **AI-powered meal planning** with **professional nutritionist consultations**. Whether you're looking to lose weight, build muscle, or simply eat healthier, FoodVision creates personalized diet plans tailored to your unique goals, preferences, and lifestyle.
+
+### **What Makes FoodVision Different?**
+
+- **AI-Powered Personalization** – Not just generic advice, but truly personalized meal plans
+- **Professional Consultancy** – Book sessions with certified nutritionists
+- **Real-time Tracking** – Monitor calories, macros, and progress effortlessly
+- **Goal-Oriented** – Whether weight loss, muscle gain, or healthy living
+- **Dark & Light Mode** – Beautiful UI that adapts to your preference
 
 ---
 
 ## **Features**
 
-* AI-generated personalized diet plans
-* Daily calorie and macro tracking
-* Smart meal recommendations based on goals and history
-* AI nutrition chat for food and diet queries
-* Secure user authentication
+### 🥘 **For Users**
+- **AI Recipe Generator** – Generate personalized recipes from ingredients or preferences
+- **Daily Meal Planning** – Get customized meal plans for each day
+- **Macro & Calorie Tracking** – Track protein, carbs, fats, and calories in real-time
+- **Smart Recommendations** – AI suggests meals based on your history and goals
+- **Progress Dashboard** – Visual progress tracking with charts and streaks
+- **Recipe Details** – Complete nutritional breakdown for every recipe
+
+### 👨‍⚕️ **For Nutritionists**
+- **Client Management** – Track all your clients in one place
+- **Consultation Booking** – Clients can book time slots directly
+- **Session Management** – Start sessions, take notes, and track progress
+- **Diet Plan Creation** – Create expert diet plans for clients
+- **Pre-Consultation Forms** – Review client goals before sessions
+- **Professional Dashboard** – Stats, upcoming sessions, and quick actions
+
+### 💬 **AI Nutrition Chat**
+- Get instant answers to nutrition questions
+- Meal suggestions based on your preferences
+- Calorie calculations and macro breakdowns
+- Smart diet adjustments
+
+---
+
+## 🎨 **Screenshots**
+
+<div align="center">
+
+| User Side | Nutritionist Side |
+|-----------|-------------------|
+| 🏠 Home Dashboard | 📊 Professional Dashboard |
+| 🍽️ Meal Tracking | 👥 Client Management |
+| 🤖 AI Recipe Generator | 📋 Diet Plan Creator |
+| 📅 Book Consultation | 📝 Session Notes |
+| 📊 Progress Tracking | 👤 Profile Management |
+
+</div>
 
 ---
 
 ## **Tech Stack**
 
-* **React Native (Expo)**
-* **Expo Router** for navigation
-* **Firebase Authentication** (auth only)
-* **Convex** for database and backend logic
-* **OpenRouter** for AI-powered nutrition responses
-* **TypeScript**
+<div align="center">
+
+| Technology | Purpose |
+|------------|---------|
+| **React Native (Expo)** | Cross-platform mobile app |
+| **Expo Router** | File-based navigation & routing |
+| **Firebase Auth** | Secure user authentication |
+| **Convex** | Real-time database & backend logic |
+| **OpenRouter / Gemini API** | AI-powered nutrition intelligence |
+| **AsyncStorage** | Local data persistence |
+| **React Native Reanimated** | Smooth animations & transitions |
+
+</div>
 
 ---
 
-## **Setup & Installation**
+## **Getting Started**
 
 ### **Prerequisites**
 
-Make sure you have:
+Before you begin, ensure you have:
 
-* Node.js (v18 or higher)
-* A Firebase project (Authentication enabled)
-* A Convex project
-* An OpenRouter API key
+- ✅ **Node.js** (v18 or higher)
+- ✅ **npm** or **yarn**
+- ✅ **Expo Go** app on your mobile device (for testing)
+- ✅ A **Firebase** project with Authentication enabled
+- ✅ A **Convex** project (free tier available)
+- ✅ An **OpenRouter** API key (for AI features)
 
-> Expo CLI is **not required globally**.
-> The project runs using `npx expo`, which is the recommended approach.
+### **Installation**
 
----
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/codeshivam-dev/FoodVision-App.git
+   cd FoodVision-App
+   ```
 
-### **1. Clone the Repository**
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-```bash
-git clone https://github.com/shivamEr/FoodVision-App.git
-cd FoodVision-App
-```
+3. **Set up environment variables**
 
----
+   Create a `.env.local` file in the root directory:
+   ```env
+   # Convex Configuration
+   CONVEX_DEPLOYMENT=dev:your-deployment-name
+   EXPO_PUBLIC_CONVEX_URL=https://your-project.convex.cloud
 
-### **2. Install Dependencies**
+   # Firebase Configuration
+   EXPO_PUBLIC_FIREBASE_API_KEY=your-firebase-api-key
 
-```bash
-npm install
-```
+   # AI Configuration
+   EXPO_PUBLIC_OPENROUTER_API_KEY=your-openrouter-api-key
+   ```
 
----
+4. **Start Convex development server**
+   ```bash
+   npx convex dev
+   ```
 
-### **3. Environment Variables**
+5. **Run the app**
+   ```bash
+   npx expo start or npm start
+   ```
 
-Create an `example.env` (or `.env`) file in the root directory:
-
-```env
-# Deployment used by `npx convex dev`
-CONVEX_DEPLOYMENT=get from convex dashboard
-
-EXPO_PUBLIC_CONVEX_URL=get from convex dashboard
-
-EXPO_PUBLIC_FIREBASE_API_KEY=apikey(from firebase)
-
-EXPO_PUBLIC_OPENROUTER_API_KEY=apikey (from openrouter)
-```
-
-⚠️ Do not commit real environment values to version control.
-
----
-
-### **4. Firebase Authentication Setup**
-
-1. Create a Firebase project
-2. Enable **Email/Password Authentication**
-3. Copy the Firebase API key into the env file
-4. Firebase is used **only for user authentication**
+6. **Open on your device**
+   - Scan the QR code with **Expo Go** (iOS/Android)
+   - Or press `a` for Android emulator / `i` for iOS simulator
 
 ---
 
-### **5. Convex Setup**
+## **Architecture**
 
-Run the Convex development server:
+<div align="center">
+  <img src="assets/images/architecture.svg" alt="FoodVision Architecture" width="100%">
+</div>
 
-```bash
-npx convex dev
-```
+The diagram above shows how FoodVision connects users with AI-powered meal planning 
+and professional nutritionist consultations through a modern serverless architecture.
 
-Convex handles:
+## **Key Features in Action**
 
-* Database
-* Backend functions
-* Real-time updates
-* Type-safe queries and mutations
+### **AI Recipe Generation**
+1. Enter ingredients or preferences
+2. AI generates multiple recipe options
+3. Select and view detailed nutritional info
+4. Add to your meal plan with one tap
 
----
+### **Nutritionist Consultation**
+1. Browse certified nutritionists
+2. Book a time slot
+3. Fill pre-consultation form
+4. Attend online/in-person session
+5. Get expert diet plan
 
-### **6. Run the App**
-
-```bash
-npx expo start
-```
-
-* Open using Expo Go
-* Or run on an Android/iOS emulator
-
----
-
-## **Notes**
-
-* Expo Router is used for file-based routing
-* AI responses are generated via OpenRouter
-* Backend logic and data storage are managed by Convex
-* Firebase is intentionally limited to authentication only
+### **Progress Tracking**
+- Weekly adherence charts
+- Weight tracking
+- Macro breakdowns
+- Achievement badges
+- Streak tracking
 
 ---
 
 ## **Contributing**
 
-Pull requests are welcome.
-Please keep changes clean and aligned with the existing structure.
+We welcome contributions! Here's how you can help:
 
+1. **Fork** the repository
+2. **Create** a feature branch:
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+3. **Commit** your changes:
+   ```bash
+   git commit -m 'Add amazing feature'
+   ```
+4. **Push** to the branch:
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+5. **Open** a Pull Request
 
+### **Contribution Guidelines**
+- Follow the existing code style
+- Add proper TypeScript types
+- Test on both iOS and Android
+- Update documentation as needed
+
+---
+
+## **License**
+
+This project is licensed under the MIT License – see the [LICENSE](LICENSE) file for details.
+
+---
+
+## **Acknowledgments**
+
+- **Expo Team** – Amazing React Native framework
+- **Convex** – Powerful real-time backend
+- **OpenRouter** – AI model access
+- **Firebase** – Reliable authentication
+- **All Contributors** – Who help improve FoodVision
+
+---
+
+## **Contact & Support**
+
+<div align="center">
+
+[![GitHub](https://img.shields.io/badge/GitHub-codeshivam_dev-181717?style=for-the-badge&logo=github)](https://github.com/codeshivam-dev)
+[![Issues](https://img.shields.io/badge/Report-Issue-red?style=for-the-badge&logo=github)](https://github.com/codeshivam-dev/FoodVision-App/issues)
+
+**Made with ❤️ for better nutrition**
+
+</div>
+
+---
+
+**⭐ Don't forget to star this repo if you find it useful! ⭐**
