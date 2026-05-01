@@ -1,36 +1,110 @@
 import { Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import Colors from "../../../shared/Colors";
+import { View } from "react-native";
+import { useTheme } from "../../../context/ThemeContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function NutritionistTabLayout() {
+  const { theme, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  const tabScreens = [
+    {
+      name: "Dashboard",
+      title: "Dashboard",
+      icon: "grid",
+      iconOutline: "grid-outline",
+    },
+    {
+      name: "Clients",
+      title: "Clients",
+      icon: "people",
+      iconOutline: "people-outline",
+    },
+    {
+      name: "Plans",
+      title: "Plans",
+      icon: "document-text",
+      iconOutline: "document-text-outline",
+    },
+    {
+      name: "Profile",
+      title: "Profile",
+      icon: "person",
+      iconOutline: "person-outline",
+    },
+  ];
+
   return (
     <Tabs
       screenOptions={({ route }) => ({
         tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
+          const screen = tabScreens.find((s) => s.name === route.name);
+          const iconName = focused ? screen?.icon : screen?.iconOutline;
 
-          if (route.name === "Dashboard") {
-            iconName = focused ? "grid" : "grid-outline";
-          } else if (route.name === "Clients") {
-            iconName = focused ? "people" : "people-outline";
-          } else if (route.name === "Plans") {
-            iconName = focused ? "document-text" : "document-text-outline";
-          } else if (route.name === "Profile") {
-            iconName = focused ? "person" : "person-outline";
-          }
-
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return (
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name={iconName} size={size} color={color} />
+              {focused && (
+                <View
+                  style={{
+                    width: 4,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: theme.colors.primary,
+                    marginTop: 4,
+                  }}
+                />
+              )}
+            </View>
+          );
         },
 
-        tabBarActiveTintColor: Colors.PRIMARY,
-        tabBarInactiveTintColor: "gray",
+        // Colors
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.textSecondary,
+
+        // Tab bar container
+        tabBarStyle: {
+          backgroundColor: isDark ? theme.colors.card : theme.colors.background,
+          borderTopColor: theme.colors.divider,
+          borderTopWidth: 1,
+          height: 70 + (insets.bottom || 0),
+          paddingBottom: 8 + (insets.bottom || 0),
+          paddingTop: 10,
+          elevation: 0,
+          shadowColor: theme.colors.shadow,
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
+        },
+
+        // Label
+        tabBarLabelStyle: {
+          fontSize: theme.fontSize.xs,
+          fontWeight: theme.fontWeight.medium,
+          marginTop: 0,
+        },
+
+        // Active tab background
+        tabBarBackground: () => null,
+        
+        // Item style
+        tabBarItemStyle: {
+          paddingVertical: 4,
+        },
+
+        // Hide header
         headerShown: false,
       })}
     >
-      <Tabs.Screen name="Dashboard" options={{ title: "Dashboard" }} />
-      <Tabs.Screen name="Clients" options={{ title: "Clients" }} />
-      <Tabs.Screen name="Plans" options={{ title: "Plans" }} />
-      <Tabs.Screen name="Profile" options={{ title: "Profile" }} />
+      {tabScreens.map((screen) => (
+        <Tabs.Screen
+          key={screen.name}
+          name={screen.name}
+          options={{ title: screen.title }}
+        />
+      ))}
     </Tabs>
   );
 }

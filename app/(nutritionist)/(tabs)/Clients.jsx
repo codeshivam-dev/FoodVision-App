@@ -1,105 +1,32 @@
-// import { View, Text, FlatList, TouchableOpacity } from 'react-native';
-// import React, { useEffect, useState, useContext } from 'react';
-// import { useConvex } from 'convex/react';
-// import { api } from '../../../convex/_generated/api';
-// import { useRouter } from 'expo-router';
-// import { UserContext } from '../../../context/UserContext';
-// import Colors from '../../../shared/Colors';
-
-// export default function Clients() {
-//     const { user } = useContext(UserContext);
-//     const convex = useConvex();
-//     const router = useRouter();
-//     const [consultations, setConsultations] = useState([]);
-
-//     useEffect(() => {
-//         if (user?.role === 'nutritionist') {
-//             getConsultations();
-//         }
-//     }, [user]);
-
-//     const getConsultations = async () => {
-//         const nutritionists = await convex.query(api.Nutritionists.getAllNutritionists);
-//         const nutri = nutritionists.find(n => n.userId === user._id);
-//         if (nutri) {
-//             const result = await convex.query(api.Consultations.getNutritionistConsultations, {
-//                 nutritionistId: nutri._id,
-//             });
-//             // Get unique users
-//             const uniqueUsers = [];
-//             const seen = new Set();
-//             result.forEach(c => {
-//                 if (!seen.has(c.user._id)) {
-//                     seen.add(c.user._id);
-//                     uniqueUsers.push(c);
-//                 }
-//             });
-//             setConsultations(uniqueUsers);
-//         }
-//     };
-
-//     const renderClient = ({ item }) => (
-//         <TouchableOpacity
-//             style={{
-//                 backgroundColor: 'white',
-//                 margin: 10,
-//                 padding: 15,
-//                 borderRadius: 10,
-//                 shadowColor: '#000',
-//                 shadowOffset: { width: 0, height: 2 },
-//                 shadowOpacity: 0.1,
-//                 shadowRadius: 5,
-//                 elevation: 3,
-//             }}
-//             onPress={() => router.push(`/client/${item.user._id}`)}
-//         >
-//             <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{item.user.name}</Text>
-//             <Text>{item.user.email}</Text>
-//         </TouchableOpacity>
-//     );
-
-//     return (
-//         <View style={{ flex: 1, backgroundColor: '#F7F7F7', padding: 20 }}>
-//             <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 20 }}>My Clients</Text>
-//             {consultations.length === 0 ? (
-//                 <Text style={{ textAlign: 'center', color: 'gray' }}>No clients yet</Text>
-//             ) : (
-//                 <FlatList
-//                     data={consultations}
-//                     renderItem={renderClient}
-//                     keyExtractor={(item) => item.user._id}
-//                 />
-//             )}
-//         </View>
-//     );
-// }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
-import React, { useEffect, useState, useContext } from 'react';
+// (nutritionist)/(tabs)/Clients.jsx
+import { 
+  View, 
+  FlatList, 
+  TouchableOpacity, 
+  StyleSheet, 
+  TextInput,
+  RefreshControl,
+  ActivityIndicator,
+} from 'react-native';
+import React, { useEffect, useState, useContext, useCallback, useMemo } from 'react';
 import { useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useRouter } from 'expo-router';
 import { UserContext } from '../../../context/UserContext';
-import Colors from '../../../shared/Colors';
+import { useTheme } from '../../../context/ThemeContext';
+import { Txt, Box, Card } from '../../../components/UIComponents';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function Clients() {
   const { user } = useContext(UserContext);
   const convex = useConvex();
   const router = useRouter();
+  const { theme } = useTheme();
+
   const [consultations, setConsultations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (user?.role === 'nutritionist') {
@@ -108,165 +35,389 @@ export default function Clients() {
   }, [user]);
 
   const getConsultations = async () => {
-    const nutritionists = await convex.query(api.Nutritionists.getAllNutritionists);
-    const nutri = nutritionists.find(n => n.userId === user._id);
-    if (nutri) {
-      const result = await convex.query(api.Consultations.getNutritionistConsultations, {
-        nutritionistId: nutri._id,
-      });
+    try {
+      const nutritionists = await convex.query(api.Nutritionists.getAllNutritionists);
+      const nutri = nutritionists.find(n => n.userId === user._id);
+      
+      if (nutri) {
+        const result = await convex.query(api.Consultations.getNutritionistConsultations, {
+          nutritionistId: nutri._id,
+        });
 
-      const uniqueUsers = [];
-      const seen = new Set();
-      result.forEach(c => {
-        if (!seen.has(c.user._id)) {
-          seen.add(c.user._id);
-          uniqueUsers.push(c);
-        }
-      });
+        // Get unique clients with their latest consultation
+        const uniqueUsers = [];
+        const seen = new Set();
+        const clientStats = {};
 
-      setConsultations(uniqueUsers);
+        result.forEach(c => {
+          const clientId = c.user._id;
+          
+          // Track client stats
+          if (!clientStats[clientId]) {
+            clientStats[clientId] = {
+              totalConsultations: 0,
+              completedConsultations: 0,
+              upcomingConsultations: 0,
+              lastConsultation: null,
+            };
+          }
+          
+          clientStats[clientId].totalConsultations++;
+          
+          if (c.status === 'completed') {
+            clientStats[clientId].completedConsultations++;
+          } else if (c.status === 'confirmed' || c.status === 'upcoming') {
+            clientStats[clientId].upcomingConsultations++;
+          }
+          
+          if (!clientStats[clientId].lastConsultation || 
+              new Date(c.slot?.date) > new Date(clientStats[clientId].lastConsultation?.slot?.date)) {
+            clientStats[clientId].lastConsultation = c;
+          }
+
+          // Add unique client
+          if (!seen.has(clientId)) {
+            seen.add(clientId);
+            uniqueUsers.push({
+              ...c,
+              stats: clientStats[clientId],
+            });
+          }
+        });
+
+        setConsultations(uniqueUsers);
+      }
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const renderClient = ({ item }) => {
-    const initial = item.user.name?.charAt(0)?.toUpperCase();
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await getConsultations();
+    setRefreshing(false);
+  }, [user]);
+
+  // Filter clients based on search
+  const filteredClients = useMemo(() => {
+    if (!searchQuery.trim()) return consultations;
+    
+    const query = searchQuery.toLowerCase().trim();
+    return consultations.filter(client => 
+      client?.user?.name?.toLowerCase().includes(query) ||
+      client?.user?.email?.toLowerCase().includes(query)
+    );
+  }, [consultations, searchQuery]);
+
+  // Sort clients: upcoming first, then alphabetical
+  const sortedClients = useMemo(() => {
+    return [...filteredClients].sort((a, b) => {
+      // Clients with upcoming consultations first
+      if (a.stats?.upcomingConsultations > 0 && b.stats?.upcomingConsultations === 0) return -1;
+      if (a.stats?.upcomingConsultations === 0 && b.stats?.upcomingConsultations > 0) return 1;
+      
+      // Then sort by name
+      return (a.user?.name || '').localeCompare(b.user?.name || '');
+    });
+  }, [filteredClients]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <Box style={[styles.centerContainer, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Txt color={theme.colors.textSecondary} style={{ marginTop: 12 }}>
+          Loading clients...
+        </Txt>
+      </Box>
+    );
+  }
+
+  const renderClient = ({ item, index }) => {
+    const initial = item?.user?.name?.charAt(0)?.toUpperCase() || '?';
+    const hasUpcoming = item.stats?.upcomingConsultations > 0;
+    const totalSessions = item.stats?.totalConsultations || 0;
 
     return (
       <TouchableOpacity
-        style={styles.card}
+        style={[styles.clientCard, { 
+          backgroundColor: theme.colors.card,
+          borderLeftColor: hasUpcoming 
+            ? theme.colors.primary 
+            : theme.colors.textSecondary,
+          ...theme.shadows.small,
+        }]}
         onPress={() => router.push(`/client/${item.user._id}`)}
+        activeOpacity={0.7}
       >
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{initial}</Text>
+        {/* Avatar Section */}
+        <View style={styles.avatarSection}>
+          <View style={[styles.avatar, { backgroundColor: theme.colors.primary }]}>
+            <Txt size={theme.fontSize.lg} bold color={theme.colors.white}>
+              {initial}
+            </Txt>
+          </View>
+          
+          {/* Upcoming indicator */}
+          {hasUpcoming && (
+            <View style={[styles.upcomingDot, { backgroundColor: theme.colors.accent || theme.colors.GREEN }]} />
+          )}
         </View>
 
-        <View style={{ flex: 1 }}>
-          <Text style={styles.patientName}>{item.user.name}</Text>
-          <Text style={styles.patientEmail}>{item.user.email}</Text>
+        {/* Client Info */}
+        <View style={styles.clientInfo}>
+          <View style={styles.nameRow}>
+            <Txt size={theme.fontSize.md} bold color={theme.colors.text} numberOfLines={1}>
+              {item?.user?.name || 'Unknown Client'}
+            </Txt>
+            
+            {hasUpcoming && (
+              <View style={[styles.upcomingBadge, { backgroundColor: theme.colors.primaryLight }]}>
+                <Txt size={10} bold color={theme.colors.primary}>
+                  Upcoming
+                </Txt>
+              </View>
+            )}
+          </View>
+
+          <Txt size={theme.fontSize.xs} color={theme.colors.textSecondary} numberOfLines={1}>
+            {item?.user?.email || 'No email'}
+          </Txt>
+
+          {/* Stats Row */}
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Ionicons name="calendar-outline" size={12} color={theme.colors.textSecondary} />
+              <Txt size={11} color={theme.colors.textSecondary}>
+                {totalSessions} {totalSessions === 1 ? 'session' : 'sessions'}
+              </Txt>
+            </View>
+
+            {item.stats?.completedConsultations > 0 && (
+              <View style={styles.statItem}>
+                <Ionicons name="checkmark-circle-outline" size={12} color={theme.colors.accent || theme.colors.GREEN} />
+                <Txt size={11} color={theme.colors.accent || theme.colors.GREEN}>
+                  {item.stats.completedConsultations} completed
+                </Txt>
+              </View>
+            )}
+          </View>
+
+          {/* Last Consultation Date */}
+          {item.stats?.lastConsultation && (
+            <View style={styles.lastConsultRow}>
+              <Ionicons name="time-outline" size={12} color={theme.colors.textSecondary} />
+              <Txt size={11} color={theme.colors.textSecondary}>
+                Last: {item.stats.lastConsultation?.slot?.date || 'N/A'}
+              </Txt>
+            </View>
+          )}
         </View>
 
-        <Text style={styles.viewText}>View</Text>
+        {/* Arrow */}
+        <View style={styles.arrowContainer}>
+          <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+        </View>
       </TouchableOpacity>
     );
   };
 
   return (
-    <View style={styles.container}>
+    <Box style={{ flex: 1, backgroundColor: theme.colors.background }}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>My Patients</Text>
-        <Text style={styles.subtitle}>
-          Patients currently under your nutritional care
-        </Text>
-      </View>
+      <Box style={[styles.header, { 
+        backgroundColor: theme.colors.card,
+        borderBottomColor: theme.colors.divider,
+      }]}>
+        <Txt size={theme.fontSize.xxl} bold color={theme.colors.text}>
+          My Clients
+        </Txt>
+        <Txt size={theme.fontSize.sm} color={theme.colors.textSecondary} style={{ marginTop: 4 }}>
+          {consultations.length} {consultations.length === 1 ? 'client' : 'clients'} under your care
+        </Txt>
 
-      {/* List */}
-      {consultations.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No Patients Yet</Text>
-          <Text style={styles.emptyText}>
-            Once consultations are booked, patients will appear here.
-          </Text>
+        {/* Search Bar */}
+        {consultations.length > 0 && (
+          <View style={[styles.searchBar, { 
+            backgroundColor: theme.colors.inputBg,
+            borderColor: theme.colors.inputBorder,
+          }]}>
+            <Ionicons name="search-outline" size={18} color={theme.colors.textSecondary} />
+            <TextInput
+              placeholder="Search clients by name or email..."
+              placeholderTextColor={theme.colors.textSecondary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              style={[styles.searchInput, { color: theme.colors.text }]}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={18} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </Box>
+
+      {/* Clients List */}
+      {sortedClients.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          {searchQuery ? (
+            <>
+              <Ionicons name="search-outline" size={48} color={theme.colors.textSecondary} />
+              <Txt size={theme.fontSize.lg} bold color={theme.colors.text} style={{ marginTop: 16 }}>
+                No Results Found
+              </Txt>
+              <Txt color={theme.colors.textSecondary} style={{ textAlign: 'center', marginTop: 8 }}>
+                No clients match "{searchQuery}"
+              </Txt>
+              <TouchableOpacity 
+                onPress={() => setSearchQuery('')}
+                style={[styles.clearButton, { borderColor: theme.colors.primary }]}
+              >
+                <Txt size={theme.fontSize.sm} color={theme.colors.primary}>Clear Search</Txt>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <MaterialCommunityIcons name="account-group-outline" size={48} color={theme.colors.textSecondary} />
+              <Txt size={theme.fontSize.lg} bold color={theme.colors.text} style={{ marginTop: 16 }}>
+                No Clients Yet
+              </Txt>
+              <Txt color={theme.colors.textSecondary} style={{ textAlign: 'center', marginTop: 8 }}>
+                Once consultations are booked, your clients will appear here
+              </Txt>
+            </>
+          )}
         </View>
       ) : (
         <FlatList
-          data={consultations}
+          data={sortedClients}
           renderItem={renderClient}
           keyExtractor={(item) => item.user._id}
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[theme.colors.primary]}
+              tintColor={theme.colors.primary}
+            />
+          }
+          ListFooterComponent={<View style={{ height: 20 }} />}
         />
       )}
-    </View>
+    </Box>
   );
 }
 
-
-
-
 const styles = StyleSheet.create({
-  container: {
+  centerContainer: {
     flex: 1,
-    backgroundColor: '#F4F6FA',
-    padding: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
   },
-
   header: {
-    marginBottom: 20,
+    padding: 20,
+    paddingTop: 24,
+    borderBottomWidth: 1,
   },
-
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#222',
-  },
-
-  subtitle: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 4,
-  },
-
-  card: {
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 14,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    paddingVertical: 0,
+  },
+  listContent: {
+    padding: 16,
+    paddingTop: 12,
+  },
+  clientCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 14,
     borderRadius: 14,
-    marginBottom: 12,
-    elevation: 2,
+    borderLeftWidth: 4,
+    gap: 12,
   },
-
+  avatarSection: {
+    position: 'relative',
+  },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Colors.PRIMARY,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
-
-  avatarText: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '700',
+  upcomingDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
-
-  patientName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#222',
+  clientInfo: {
+    flex: 1,
+    gap: 3,
   },
-
-  patientEmail: {
-    fontSize: 13,
-    color: '#666',
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  upcomingBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
     marginTop: 2,
   },
-
-  viewText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.PRIMARY,
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
   },
-
-  emptyState: {
+  lastConsultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 1,
+  },
+  arrowContainer: {
+    paddingLeft: 8,
+  },
+  emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 32,
+  },
+  clearButton: {
+    marginTop: 16,
     paddingHorizontal: 20,
-  },
-
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 6,
-  },
-
-  emptyText: {
-    fontSize: 13,
-    color: '#777',
-    textAlign: 'center',
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
   },
 });

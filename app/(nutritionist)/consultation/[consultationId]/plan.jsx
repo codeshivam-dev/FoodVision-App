@@ -1,200 +1,24 @@
-// import { View, Text, TextInput, TouchableOpacity, FlatList, Alert } from 'react-native';
-// import React, { useEffect, useState, useContext } from 'react';
-// import { useConvex } from 'convex/react';
-// import { api } from '../../../../convex/_generated/api';
-// import { useRouter, useLocalSearchParams } from 'expo-router';
-// import { UserContext } from '../../../../context/UserContext';
-// import Colors from '../../../../shared/Colors';
-// import Button from '../../../../components/shared/Button';
-
-// export default function CreateDietPlan() {
-//     const { consultationId } = useLocalSearchParams();
-//     const { user } = useContext(UserContext);
-//     const convex = useConvex();
-//     const router = useRouter();
-//     const [meals, setMeals] = useState([]);
-//     const [plan, setPlan] = useState(null);
-
-//     useEffect(() => {
-//         if (user?.role !== 'nutritionist') {
-//             router.replace('/(tabs)');
-//             return;
-//         }
-//         getPlan();
-//     }, [consultationId, user]);
-
-//     const getPlan = async () => {
-//         const result = await convex.query(api.ExpertDietPlans.getExpertDietPlan, {
-//             consultationId,
-//         });
-//         if (result) {
-//             setPlan(result);
-//             setMeals(result.meals);
-//         }
-//     };
-
-//     const addMeal = () => {
-//         setMeals([...meals, {
-//             name: '',
-//             calories: 0,
-//             macros: { protein: 0, carbs: 0, fat: 0 }
-//         }]);
-//     };
-
-//     const updateMeal = (index, field, value) => {
-//         const updated = [...meals];
-//         if (field === 'name') {
-//             updated[index][field] = value;
-//         } else if (field === 'calories') {
-//             updated[index][field] = parseInt(value);
-//         } else {
-//             updated[index].macros[field] = parseInt(value);
-//         }
-//         setMeals(updated);
-//     };
-
-//     const removeMeal = (index) => {
-//         setMeals(meals.filter((_, i) => i !== index));
-//     };
-
-//     const handleSave = async () => {
-//         try {
-//             const consultation = await convex.query(api.Consultations.getConsultationDetails, { consultationId });
-//             if (plan) {
-//                 await convex.mutation(api.ExpertDietPlans.updateExpertDietPlan, {
-//                     planId: plan._id,
-//                     meals,
-//                 });
-//             } else {
-//                 await convex.mutation(api.ExpertDietPlans.createExpertDietPlan, {
-//                     consultationId,
-//                     userId: consultation.user._id,
-//                     meals,
-//                 });
-//             }
-//             Alert.alert('Success', 'Diet plan saved');
-//             router.replace('/(nutritionist)/(tabs)/Dashboard');
-//         } catch (error) {
-//             Alert.alert('Error', error.message);
-//         }
-//     };
-
-//     const renderMeal = ({ item, index }) => (
-//         <View style={{
-//             backgroundColor: 'white',
-//             margin: 10,
-//             padding: 15,
-//             borderRadius: 10,
-//             shadowColor: '#000',
-//             shadowOffset: { width: 0, height: 2 },
-//             shadowOpacity: 0.1,
-//             shadowRadius: 5,
-//             elevation: 3,
-//         }}>
-//             <TextInput
-//                 style={{ borderBottomWidth: 1, marginBottom: 10 }}
-//                 placeholder="Meal name"
-//                 value={item.name}
-//                 onChangeText={(value) => updateMeal(index, 'name', value)}
-//             />
-//             <TextInput
-//                 style={{ borderBottomWidth: 1, marginBottom: 10 }}
-//                 placeholder="Calories"
-//                 value={item.calories.toString()}
-//                 onChangeText={(value) => updateMeal(index, 'calories', value)}
-//                 keyboardType="numeric"
-//             />
-//             <TextInput
-//                 style={{ borderBottomWidth: 1, marginBottom: 10 }}
-//                 placeholder="Protein (g)"
-//                 value={item.macros.protein.toString()}
-//                 onChangeText={(value) => updateMeal(index, 'protein', value)}
-//                 keyboardType="numeric"
-//             />
-//             <TextInput
-//                 style={{ borderBottomWidth: 1, marginBottom: 10 }}
-//                 placeholder="Carbs (g)"
-//                 value={item.macros.carbs.toString()}
-//                 onChangeText={(value) => updateMeal(index, 'carbs', value)}
-//                 keyboardType="numeric"
-//             />
-//             <TextInput
-//                 style={{ borderBottomWidth: 1, marginBottom: 10 }}
-//                 placeholder="Fat (g)"
-//                 value={item.macros.fat.toString()}
-//                 onChangeText={(value) => updateMeal(index, 'fat', value)}
-//                 keyboardType="numeric"
-//             />
-//             <TouchableOpacity onPress={() => removeMeal(index)}>
-//                 <Text style={{ color: 'red' }}>Remove</Text>
-//             </TouchableOpacity>
-//         </View>
-//     );
-
-//     return (
-//         <View style={{ flex: 1, backgroundColor: '#F7F7F7', padding: 20 }}>
-//             <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 20 }}>
-//                 {plan ? 'Edit' : 'Create'} Expert Diet Plan
-//             </Text>
-
-//             <TouchableOpacity
-//                 style={{
-//                     backgroundColor: Colors.PRIMARY,
-//                     padding: 10,
-//                     borderRadius: 5,
-//                     marginBottom: 20,
-//                     alignItems: 'center',
-//                 }}
-//                 onPress={addMeal}
-//             >
-//                 <Text style={{ color: 'white' }}>Add Meal</Text>
-//             </TouchableOpacity>
-
-//             <FlatList
-//                 data={meals}
-//                 renderItem={renderMeal}
-//                 keyExtractor={(item, index) => index.toString()}
-//             />
-
-//             <Button title="Save Plan" onPress={handleSave} />
-//         </View>
-//     );
-// }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import {
   View,
-  Text,
   TextInput,
   TouchableOpacity,
   FlatList,
   Alert,
   StyleSheet,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import React, { useEffect, useState, useContext } from 'react';
 import { useConvex } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { UserContext } from '../../../../context/UserContext';
-import Colors from '../../../../shared/Colors';
+import { useTheme } from '../../../../context/ThemeContext';
+import { Txt, Box, Card } from '../../../../components/UIComponents';
 import Button from '../../../../components/shared/Button';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function CreateDietPlan() {
   const params = useLocalSearchParams();
@@ -205,26 +29,44 @@ export default function CreateDietPlan() {
   const { user } = useContext(UserContext);
   const convex = useConvex();
   const router = useRouter();
+  const { theme } = useTheme();
 
   const [meals, setMeals] = useState([]);
   const [plan, setPlan] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [consultation, setConsultation] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (user?.role !== 'nutritionist') {
       router.replace('/(tabs)');
       return;
     }
-    getPlan();
+    getPlanData();
   }, [consultationId, user]);
 
-  const getPlan = async () => {
-    const result = await convex.query(api.ExpertDietPlans.getExpertDietPlan, {
-      consultationId,
-    });
-    if (result) {
-      setPlan(result);
-      setMeals(result.meals);
+  const getPlanData = async () => {
+    try {
+      // Get existing plan if any
+      const planResult = await convex.query(api.ExpertDietPlans.getExpertDietPlan, {
+        consultationId,
+      });
+      
+      if (planResult) {
+        setPlan(planResult);
+        setMeals(planResult.meals || []);
+      }
+
+      // Get consultation details for context
+      const consultationResult = await convex.query(
+        api.Consultations.getConsultationDetails,
+        { consultationId }
+      );
+      setConsultation(consultationResult);
+    } catch (error) {
+      console.error('Error fetching plan data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -235,55 +77,95 @@ export default function CreateDietPlan() {
         name: '',
         calories: '',
         macros: { protein: '', carbs: '', fat: '' },
+        foods: [],
+        instructions: '',
       },
     ]);
   };
 
-  const updateMeal = (index, field, value) => {
+  const updateMeal = (index, field, value, subField = null) => {
     const updated = [...meals];
-    if (field === 'name' || field === 'calories') {
-      updated[index][field] = value;
+    if (subField) {
+      updated[index][field] = {
+        ...updated[index][field],
+        [subField]: value,
+      };
     } else {
-      updated[index].macros[field] = value;
+      updated[index][field] = value;
     }
     setMeals(updated);
   };
 
-  const removeMeal = index => {
-    setMeals(meals.filter((_, i) => i !== index));
+  const removeMeal = (index) => {
+    Alert.alert(
+      'Remove Meal',
+      `Are you sure you want to remove Meal ${index + 1}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => setMeals(meals.filter((_, i) => i !== index)),
+        },
+      ]
+    );
+  };
+
+  const validateMeals = () => {
+    if (meals.length === 0) {
+      Alert.alert('No Meals', 'Please add at least one meal to the diet plan');
+      return false;
+    }
+
+    for (let i = 0; i < meals.length; i++) {
+      const meal = meals[i];
+      if (!meal.name?.trim()) {
+        Alert.alert('Missing Name', `Please enter a name for Meal ${i + 1}`);
+        return false;
+      }
+
+      const calories = parseFloat(meal.calories);
+      const protein = parseFloat(meal.macros?.protein);
+      const carbs = parseFloat(meal.macros?.carbs);
+      const fat = parseFloat(meal.macros?.fat);
+
+      if (isNaN(calories) || isNaN(protein) || isNaN(carbs) || isNaN(fat)) {
+        Alert.alert(
+          'Invalid Values',
+          `Please enter valid numbers for calories and macros in Meal ${i + 1}`
+        );
+        return false;
+      }
+
+      if (calories <= 0 || protein < 0 || carbs < 0 || fat < 0) {
+        Alert.alert(
+          'Invalid Values',
+          `Calories and macros must be positive numbers in Meal ${i + 1}`
+        );
+        return false;
+      }
+    }
+
+    return true;
   };
 
   const handleSave = async () => {
-    // Ensure numeric fields are numbers — Convex expects floats for calories/macros
-    const normalizedMeals = meals.map((m, idx) => {
-      const calories = parseFloat(m.calories);
-      const protein = parseFloat(m.macros?.protein);
-      const carbs = parseFloat(m.macros?.carbs);
-      const fat = parseFloat(m.macros?.fat);
+    if (!validateMeals()) return;
 
-      if (Number.isNaN(calories) || Number.isNaN(protein) || Number.isNaN(carbs) || Number.isNaN(fat)) {
-        throw new Error(
-          `Invalid numeric value in meal ${idx + 1}. Please enter numbers for calories and macros.`
-        );
-      }
+    setSaving(true);
 
-      return {
-        name: m.name || '',
-        calories,
-        macros: {
-          protein,
-          carbs,
-          fat,
-        },
-      };
-    });
-
-    setLoading(true);
     try {
-      const consultation = await convex.query(
-        api.Consultations.getConsultationDetails,
-        { consultationId }
-      );
+      const normalizedMeals = meals.map((m) => ({
+        name: m.name.trim(),
+        calories: parseFloat(m.calories),
+        macros: {
+          protein: parseFloat(m.macros.protein),
+          carbs: parseFloat(m.macros.carbs),
+          fat: parseFloat(m.macros.fat),
+        },
+        foods: m.foods || [],
+        instructions: m.instructions?.trim() || '',
+      }));
 
       if (plan) {
         await convex.mutation(api.ExpertDietPlans.updateExpertDietPlan, {
@@ -291,193 +173,460 @@ export default function CreateDietPlan() {
           meals: normalizedMeals,
         });
       } else {
+        const consultationData = await convex.query(
+          api.Consultations.getConsultationDetails,
+          { consultationId }
+        );
+
         await convex.mutation(api.ExpertDietPlans.createExpertDietPlan, {
           consultationId,
-          userId: consultation.user._id,
+          userId: consultationData.user._id,
           meals: normalizedMeals,
         });
       }
 
-      Alert.alert('Success', 'Diet plan saved successfully');
-      router.replace('/(nutritionist)/(tabs)/Dashboard');
+      Alert.alert(
+        'Success! 🎉',
+        `Diet plan ${plan ? 'updated' : 'created'} successfully`,
+        [
+          {
+            text: 'View Dashboard',
+            onPress: () => router.replace('/(nutritionist)/(tabs)/Dashboard'),
+          },
+        ]
+      );
     } catch (error) {
-      Alert.alert('Error', error.message || String(error));
+      Alert.alert('Error', error.message || 'Failed to save diet plan');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
+  // Calculate total macros
+  const totalMacros = meals.reduce((acc, meal) => ({
+    calories: acc.calories + (parseFloat(meal.calories) || 0),
+    protein: acc.protein + (parseFloat(meal.macros?.protein) || 0),
+    carbs: acc.carbs + (parseFloat(meal.macros?.carbs) || 0),
+    fat: acc.fat + (parseFloat(meal.macros?.fat) || 0),
+  }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+
+  // Loading state
+  if (loading) {
+    return (
+      <Box style={[styles.centerContainer, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Txt color={theme.colors.textSecondary} style={{ marginTop: 12 }}>
+          Loading plan...
+        </Txt>
+      </Box>
+    );
+  }
+
   const renderMeal = ({ item, index }) => (
-    <View style={styles.mealCard}>
+    <Card style={[styles.mealCard, { 
+      borderLeftColor: index % 2 === 0 
+        ? theme.colors.primary 
+        : theme.colors.accent || theme.colors.GREEN,
+    }]}>
+      {/* Meal Header */}
       <View style={styles.mealHeader}>
-        <Text style={styles.mealTitle}>Meal {index + 1}</Text>
-        <TouchableOpacity onPress={() => removeMeal(index)}>
-          <Text style={styles.removeText}>Remove</Text>
+        <View style={styles.mealHeaderLeft}>
+          <View style={[styles.mealNumber, { backgroundColor: theme.colors.primaryLight }]}>
+            <Txt size={theme.fontSize.sm} bold color={theme.colors.primary}>
+              {index + 1}
+            </Txt>
+          </View>
+          <Txt size={theme.fontSize.lg} bold color={theme.colors.text}>
+            Meal {index + 1}
+          </Txt>
+        </View>
+
+        <TouchableOpacity
+          onPress={() => removeMeal(index)}
+          style={[styles.removeButton, { backgroundColor: theme.colors.error + '15' }]}
+        >
+          <Ionicons name="trash-outline" size={16} color={theme.colors.error} />
+          <Txt size={theme.fontSize.xs} color={theme.colors.error}>Remove</Txt>
         </TouchableOpacity>
       </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Meal name (e.g., Breakfast)"
-        value={item.name}
-        onChangeText={v => updateMeal(index, 'name', v)}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Calories (kcal)"
-        value={item.calories}
-        onChangeText={v => updateMeal(index, 'calories', v)}
-        keyboardType="numeric"
-      />
-
-      <Text style={styles.macroTitle}>Macronutrients (grams)</Text>
-
-      <View style={styles.macroRow}>
+      {/* Meal Name */}
+      <View style={styles.fieldGroup}>
+        <Txt size={theme.fontSize.xs} bold color={theme.colors.textSecondary} style={styles.fieldLabel}>
+          Meal Name
+        </Txt>
         <TextInput
-          style={styles.macroInput}
-          placeholder="Protein"
-          value={item.macros.protein}
-          onChangeText={v => updateMeal(index, 'protein', v)}
-          keyboardType="numeric"
+          style={[styles.input, {
+            backgroundColor: theme.colors.inputBg,
+            borderColor: theme.colors.inputBorder,
+            color: theme.colors.text,
+          }]}
+          placeholder="e.g., Breakfast, Post-Workout Meal"
+          placeholderTextColor={theme.colors.textSecondary}
+          value={item.name}
+          onChangeText={(v) => updateMeal(index, 'name', v)}
         />
+      </View>
+
+      {/* Calories */}
+      <View style={styles.fieldGroup}>
+        <Txt size={theme.fontSize.xs} bold color={theme.colors.textSecondary} style={styles.fieldLabel}>
+          Calories (kcal)
+        </Txt>
         <TextInput
-          style={styles.macroInput}
-          placeholder="Carbs"
-          value={item.macros.carbs}
-          onChangeText={v => updateMeal(index, 'carbs', v)}
-          keyboardType="numeric"
-        />
-        <TextInput
-          style={styles.macroInput}
-          placeholder="Fat"
-          value={item.macros.fat}
-          onChangeText={v => updateMeal(index, 'fat', v)}
+          style={[styles.input, {
+            backgroundColor: theme.colors.inputBg,
+            borderColor: theme.colors.inputBorder,
+            color: theme.colors.text,
+          }]}
+          placeholder="e.g., 450"
+          placeholderTextColor={theme.colors.textSecondary}
+          value={item.calories}
+          onChangeText={(v) => updateMeal(index, 'calories', v)}
           keyboardType="numeric"
         />
       </View>
-    </View>
+
+      {/* Macros */}
+      <View style={styles.macrosSection}>
+        <View style={styles.macrosHeader}>
+          <MaterialCommunityIcons name="nutrition" size={16} color={theme.colors.primary} />
+          <Txt size={theme.fontSize.sm} bold color={theme.colors.primary}>
+            Macronutrients (grams)
+          </Txt>
+        </View>
+
+        <View style={styles.macrosGrid}>
+          {[
+            { key: 'protein', label: 'Protein', icon: 'food-drumstick', color: '#FF6B6B' },
+            { key: 'carbs', label: 'Carbs', icon: 'bread-slice', color: '#FFD93D' },
+            { key: 'fat', label: 'Fats', icon: 'oil', color: '#66BB6A' },
+          ].map((macro) => (
+            <View key={macro.key} style={styles.macroField}>
+              <Txt size={10} color={theme.colors.textSecondary} style={{ marginBottom: 4 }}>
+                {macro.label}
+              </Txt>
+              <TextInput
+                style={[styles.macroInput, {
+                  backgroundColor: theme.colors.inputBg,
+                  borderColor: theme.colors.inputBorder,
+                  color: theme.colors.text,
+                }]}
+                placeholder="0"
+                placeholderTextColor={theme.colors.textSecondary}
+                value={item.macros[macro.key]}
+                onChangeText={(v) => updateMeal(index, 'macros', v, macro.key)}
+                keyboardType="numeric"
+              />
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* Optional: Foods list */}
+      <View style={styles.fieldGroup}>
+        <Txt size={theme.fontSize.xs} bold color={theme.colors.textSecondary} style={styles.fieldLabel}>
+          Recommended Foods (comma separated)
+        </Txt>
+        <TextInput
+          style={[styles.input, {
+            backgroundColor: theme.colors.inputBg,
+            borderColor: theme.colors.inputBorder,
+            color: theme.colors.text,
+          }]}
+          placeholder="e.g., Eggs, Oats, Banana"
+          placeholderTextColor={theme.colors.textSecondary}
+          value={item.foods?.join(', ') || ''}
+          onChangeText={(v) => updateMeal(index, 'foods', v.split(',').map(s => s.trim()).filter(Boolean))}
+        />
+      </View>
+
+      {/* Optional: Instructions */}
+      <View style={styles.fieldGroup}>
+        <Txt size={theme.fontSize.xs} bold color={theme.colors.textSecondary} style={styles.fieldLabel}>
+          Instructions (optional)
+        </Txt>
+        <TextInput
+          style={[styles.input, styles.textArea, {
+            backgroundColor: theme.colors.inputBg,
+            borderColor: theme.colors.inputBorder,
+            color: theme.colors.text,
+          }]}
+          placeholder="Any specific preparation instructions..."
+          placeholderTextColor={theme.colors.textSecondary}
+          value={item.instructions}
+          onChangeText={(v) => updateMeal(index, 'instructions', v)}
+          multiline
+          numberOfLines={3}
+          textAlignVertical="top"
+        />
+      </View>
+    </Card>
   );
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.headerCard}>
-        <Text style={styles.title}>
-          {plan ? 'Edit' : 'Create'} Expert Diet Prescription
-        </Text>
-        <Text style={styles.subtitle}>
-          Structured meal plan prescribed by nutritionist
-        </Text>
-      </View>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
+    >
+      <ScrollView 
+        style={{ flex: 1, backgroundColor: theme.colors.background }}
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <Box style={[styles.header, { 
+          backgroundColor: theme.colors.card,
+          borderBottomColor: theme.colors.divider,
+        }]}>
+          <TouchableOpacity 
+            onPress={() => router.back()}
+            style={styles.backButton}
+          >
+            <Ionicons name="arrow-back" size={22} color={theme.colors.text} />
+          </TouchableOpacity>
 
-      <TouchableOpacity style={styles.addMealBtn} onPress={addMeal}>
-        <Text style={styles.addMealText}>＋ Add Meal</Text>
-      </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Txt size={theme.fontSize.xxl} bold color={theme.colors.text}>
+              {plan ? 'Edit Diet Plan' : 'Create Diet Plan'}
+            </Txt>
+            <Txt size={theme.fontSize.sm} color={theme.colors.textSecondary} style={{ marginTop: 4 }}>
+              {consultation?.user?.name 
+                ? `Prescribed for ${consultation.user.name}` 
+                : 'Prescribe a structured meal plan'}
+            </Txt>
+          </View>
+        </Box>
 
-      <FlatList
-        data={meals}
-        renderItem={renderMeal}
-        keyExtractor={(_, index) => index.toString()}
-        scrollEnabled={false}
-      />
+        <View style={styles.content}>
+          {/* Total Macros Summary */}
+          {meals.length > 0 && (
+            <Card style={[styles.summaryCard, { 
+              backgroundColor: theme.colors.primaryLight,
+              borderColor: theme.colors.primary + '30',
+            }]}>
+              <Txt size={theme.fontSize.sm} bold color={theme.colors.primary} style={{ marginBottom: 10 }}>
+                Daily Total Nutrition
+              </Txt>
+              <View style={styles.summaryGrid}>
+                {[
+                  { label: 'Calories', value: totalMacros.calories, unit: 'kcal', color: '#FF6B6B' },
+                  { label: 'Protein', value: totalMacros.protein, unit: 'g', color: '#FF8C42' },
+                  { label: 'Carbs', value: totalMacros.carbs, unit: 'g', color: '#FFD93D' },
+                  { label: 'Fats', value: totalMacros.fat, unit: 'g', color: '#66BB6A' },
+                ].map((item) => (
+                  <View key={item.label} style={styles.summaryItem}>
+                    <View style={[styles.summaryDot, { backgroundColor: item.color }]} />
+                    <Txt size={theme.fontSize.md} bold color={theme.colors.text}>
+                      {item.value}
+                    </Txt>
+                    <Txt size={9} color={theme.colors.textSecondary}>
+                      {item.unit}
+                    </Txt>
+                    <Txt size={9} color={theme.colors.textSecondary}>
+                      {item.label}
+                    </Txt>
+                  </View>
+                ))}
+              </View>
+            </Card>
+          )}
 
-      <View style={{ marginTop: 20 }}>
-        <Button title="Save Diet Plan" onPress={handleSave} loading={loading} />
-      </View>
-    </ScrollView>
+          {/* Meals Count */}
+          <View style={styles.mealsCountRow}>
+            <Txt size={theme.fontSize.md} bold color={theme.colors.text}>
+              Meals ({meals.length})
+            </Txt>
+            <TouchableOpacity
+              style={[styles.addMealButton, { backgroundColor: theme.colors.primary }]}
+              onPress={addMeal}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add" size={18} color={theme.colors.white} />
+              <Txt size={theme.fontSize.sm} bold color={theme.colors.white}>
+                Add Meal
+              </Txt>
+            </TouchableOpacity>
+          </View>
+
+          {/* Meals List */}
+          {meals.length === 0 ? (
+            <Card style={styles.emptyState}>
+              <MaterialCommunityIcons 
+                name="food-off" 
+                size={40} 
+                color={theme.colors.textSecondary} 
+              />
+              <Txt color={theme.colors.textSecondary} style={{ textAlign: 'center' }}>
+                No meals added yet
+              </Txt>
+              <Txt size={theme.fontSize.xs} color={theme.colors.textSecondary}>
+                Tap "Add Meal" to start creating the diet plan
+              </Txt>
+            </Card>
+          ) : (
+            <FlatList
+              data={meals}
+              renderItem={renderMeal}
+              keyExtractor={(_, index) => index.toString()}
+              scrollEnabled={false}
+              contentContainerStyle={{ gap: 14 }}
+            />
+          )}
+
+          {/* Save Button */}
+          {meals.length > 0 && (
+            <View style={styles.saveContainer}>
+              <Button 
+                title={plan ? 'Update Diet Plan' : 'Save Diet Plan'}
+                onPress={handleSave}
+                loading={saving}
+              />
+              <Txt 
+                size={theme.fontSize.xs} 
+                color={theme.colors.textSecondary}
+                style={{ textAlign: 'center', marginTop: 8 }}
+              >
+                Plan will be available to the client immediately
+              </Txt>
+            </View>
+          )}
+
+          <View style={{ height: 40 }} />
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  centerContainer: {
     flex: 1,
-    backgroundColor: '#F4F6FA',
-    padding: 16,
-  },
-
-  headerCard: {
-    backgroundColor: '#FFF',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 20,
-    elevation: 3,
-  },
-
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#222',
-  },
-
-  subtitle: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 4,
-  },
-
-  addMealBtn: {
-    backgroundColor: Colors.PRIMARY,
-    padding: 14,
-    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    padding: 24,
   },
-
-  addMealText: {
-    color: '#FFF',
-    fontWeight: '600',
-    fontSize: 15,
+  header: {
+    padding: 20,
+    paddingTop: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    gap: 12,
   },
-
-  mealCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 16,
+  backButton: {
+    padding: 4,
+  },
+  content: {
     padding: 16,
-    marginBottom: 16,
-    elevation: 2,
+    gap: 16,
   },
-
+  summaryCard: {
+    padding: 14,
+    borderWidth: 1,
+  },
+  summaryGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  summaryItem: {
+    alignItems: 'center',
+    gap: 2,
+  },
+  summaryDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginBottom: 4,
+  },
+  mealsCountRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  addMealButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  mealCard: {
+    padding: 16,
+    borderLeftWidth: 4,
+    gap: 14,
+  },
   mealHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    alignItems: 'center',
   },
-
-  mealTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+  mealHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
-
-  removeText: {
-    color: '#D9534F',
-    fontWeight: '600',
+  mealNumber: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-
+  removeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  fieldGroup: {
+    gap: 6,
+  },
+  fieldLabel: {
+    marginBottom: 2,
+  },
   input: {
-    backgroundColor: '#F1F3F6',
     borderRadius: 10,
     padding: 12,
-    fontSize: 14,
-    marginBottom: 12,
+    borderWidth: 1,
+    fontSize: 15,
   },
-
-  macroTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.PRIMARY,
-    marginBottom: 8,
+  textArea: {
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
-
-  macroRow: {
+  macrosSection: {
+    gap: 8,
+  },
+  macrosHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 6,
   },
-
+  macrosGrid: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  macroField: {
+    flex: 1,
+  },
   macroInput: {
-    backgroundColor: '#F1F3F6',
     borderRadius: 10,
     padding: 10,
-    width: '32%',
+    borderWidth: 1,
     textAlign: 'center',
+    fontSize: 15,
+  },
+  emptyState: {
+    alignItems: 'center',
+    padding: 32,
+    gap: 8,
+  },
+  saveContainer: {
+    marginTop: 8,
   },
 });
