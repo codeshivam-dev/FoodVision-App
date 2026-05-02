@@ -60,11 +60,9 @@ export default function NutritionistTabLayout() {
           );
         },
 
-        // Colors
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.textSecondary,
 
-        // Tab bar container
         tabBarStyle: {
           backgroundColor: isDark ? theme.colors.card : theme.colors.background,
           borderTopColor: theme.colors.divider,
@@ -79,22 +77,18 @@ export default function NutritionistTabLayout() {
           shadowRadius: 12,
         },
 
-        // Label
         tabBarLabelStyle: {
           fontSize: theme.fontSize.xs,
           fontWeight: theme.fontWeight.medium,
           marginTop: 0,
         },
 
-        // Active tab background
         tabBarBackground: () => null,
         
-        // Item style
         tabBarItemStyle: {
           paddingVertical: 4,
         },
 
-        // Hide header
         headerShown: false,
       })}
     >

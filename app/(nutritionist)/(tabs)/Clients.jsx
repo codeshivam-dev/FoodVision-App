@@ -1,4 +1,3 @@
-// (nutritionist)/(tabs)/Clients.jsx
 import { 
   View, 
   FlatList, 
