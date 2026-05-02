@@ -1,4 +1,4 @@
-import { View, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';

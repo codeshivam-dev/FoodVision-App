@@ -7,6 +7,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../../context/ThemeContext';
 import { Txt, Box, Card } from '../../../components/UIComponents';
 import Button from '../../../components/shared/Button';
+import { TouchableOpacity } from 'react-native';
 
 export default function ExpertDietPlan() {
   const { consultationId } = useLocalSearchParams();

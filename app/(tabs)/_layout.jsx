@@ -15,6 +15,8 @@ export default function TabLayout() {
             iconName = focused ? "home" : "home-outline";
           } else if (route.name === "Meals") {
             iconName = focused ? "fast-food" : "fast-food-outline";
+          } else if (route.name === "Consultations") {
+            iconName = focused ? "calendar" : "calendar-outline";
           } else if (route.name === "Progress") {
             iconName = focused ? "bar-chart" : "bar-chart-outline";
           } else if (route.name === "Profile") {
@@ -64,6 +66,14 @@ export default function TabLayout() {
         options={{
           title: "Progress",
         }}
+      />
+       <Tabs.Screen 
+        name="Consultations" 
+        options={{ 
+          title: 'Consultations',
+          // Added badge for upcoming consultations
+          // tabBarBadge: upcomingCount > 0 ? upcomingCount : null,
+        }} 
       />
       <Tabs.Screen
         name="Profile"

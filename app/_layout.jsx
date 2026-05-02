@@ -3,13 +3,15 @@ import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { UserContext } from "../context/UserContext";
 import { ThemeProvider } from "../context/ThemeContext";
 import { useState, useEffect } from "react";
-import { View, ActivityIndicator, StatusBar } from "react-native";
+import { View, ActivityIndicator, StatusBar, LogBox } from "react-native";
 import { lightTheme } from "../shared/Colors";
 import GlobalStatusBar from "../components/shared/GlobalStatusBar";
 
 const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL ?? "", {
   unsavedChangesWarning: false,
 });
+
+LogBox.ignoreAllLogs();
 
 export default function RootLayout() {
   const [user, setUser] = useState(null);
