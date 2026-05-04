@@ -1,57 +1,65 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
+// Start session
 export const startSession = mutation({
-    args: {
-        consultationId: v.id("consultations"),
-    },
-    handler: async (ctx, args) => {
-        const existing = await ctx.db
-            .query("sessions")
-            .filter(q => q.eq(q.field("consultationId"), args.consultationId))
-            .collect();
+  args: {
+    consultationId: v.id("consultations"),
+  },
+  handler: async (ctx, args) => {
+    // Check if session already exists
+    const existing = await ctx.db
+      .query("sessions")
+      .withIndex("by_consultationId", (q) => 
+        q.eq("consultationId", args.consultationId)
+      )
+      .first();
 
-        if (existing.length > 0) {
-            throw new Error("Session already started");
-        }
-
-        const id = await ctx.db.insert("sessions", {
-            consultationId: args.consultationId,
-            startedAt: Date.now(),
-        });
-
-        // Update consultation status to completed? No, start session doesn't complete it yet.
-
-        return id;
+    if (existing) {
+      throw new Error("Session already exists for this consultation");
     }
+
+    const id = await ctx.db.insert("sessions", {
+      consultationId: args.consultationId,
+      startedAt: Date.now(),
+    });
+
+    return id;
+  },
 });
 
-export const saveSessionNotes = mutation({
-    args: {
-        sessionId: v.id("sessions"),
-        notes: v.string(),
-    },
-    handler: async (ctx, args) => {
-        await ctx.db.patch(args.sessionId, {
-            notes: args.notes,
-            endedAt: Date.now(),
-        });
-
-        // Update consultation status to completed
-        const session = await ctx.db.get(args.sessionId);
-        await ctx.db.patch(session.consultationId, { status: "completed" });
-    }
-});
-
+// Get session
 export const getSession = query({
-    args: {
-        consultationId: v.id("consultations"),
-    },
-    handler: async (ctx, args) => {
-        const sessions = await ctx.db
-            .query("sessions")
-            .filter(q => q.eq(q.field("consultationId"), args.consultationId))
-            .collect();
-        return sessions[0] || null;
-    }
+  args: {
+    consultationId: v.id("consultations"),
+  },
+  handler: async (ctx, args) => {
+    const session = await ctx.db
+      .query("sessions")
+      .withIndex("by_consultationId", (q) => 
+        q.eq("consultationId", args.consultationId)
+      )
+      .first();
+
+    return session;
+  },
+});
+
+// Save session notes
+export const saveSessionNotes = mutation({
+  args: {
+    sessionId: v.id("sessions"),
+    notes: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const session = await ctx.db.get(args.sessionId);
+    if (!session) throw new Error("Session not found");
+
+    await ctx.db.patch(args.sessionId, {
+      notes: args.notes,
+      endedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
 });

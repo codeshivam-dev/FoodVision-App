@@ -1,43 +1,40 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation } from "./_generated/server";
 
+// Save pre-consultation form 
 export const savePreConsultationForm = mutation({
-    args: {
-        consultationId: v.id("consultations"),
-        goals: v.string(),
-        medicalConditions: v.optional(v.string()),
-        allergies: v.optional(v.string()),
-        dietPreference: v.string(),
-        currentIssues: v.optional(v.string()),
-    },
-    handler: async (ctx, args) => {
-        const existing = await ctx.db
-            .query("preConsultationForms")
-            .filter(q => q.eq(q.field("consultationId"), args.consultationId))
-            .collect();
+  args: {
+    consultationId: v.id("consultations"),
+    goals: v.string(),
+    medicalConditions: v.optional(v.string()),
+    allergies: v.optional(v.string()),
+    dietPreference: v.string(),
+    currentIssues: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Check if form already exists
+    const existing = await ctx.db
+      .query("preConsultationForms")
+      .withIndex("by_consultationId", (q) => 
+        q.eq("consultationId", args.consultationId)
+      )
+      .first();
 
-        if (existing.length > 0) {
-            await ctx.db.patch(existing[0]._id, args);
-            return existing[0]._id;
-        } else {
-            const id = await ctx.db.insert("preConsultationForms", {
-                ...args,
-                createdAt: Date.now(),
-            });
-            return id;
-        }
+    if (existing) {
+      // Update existing form
+      await ctx.db.patch(existing._id, {
+        ...args,
+        createdAt: Date.now(),
+      });
+      return existing._id;
     }
-});
 
-export const getPreConsultationForm = query({
-    args: {
-        consultationId: v.id("consultations"),
-    },
-    handler: async (ctx, args) => {
-        const forms = await ctx.db
-            .query("preConsultationForms")
-            .filter(q => q.eq(q.field("consultationId"), args.consultationId))
-            .collect();
-        return forms[0] || null;
-    }
+    // Create new form
+    const id = await ctx.db.insert("preConsultationForms", {
+      ...args,
+      createdAt: Date.now(),
+    });
+
+    return id;
+  },
 });
