@@ -13,7 +13,7 @@ import { api } from '../../../convex/_generated/api';
 import { useRouter } from 'expo-router';
 import { UserContext } from '../../../context/UserContext';
 import { useTheme } from '../../../context/ThemeContext';
-import { Txt, Box, Card } from '../../../components/UIComponents';
+import { Txt, Box } from '../../../components/UIComponents';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function Clients() {

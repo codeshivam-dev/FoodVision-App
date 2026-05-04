@@ -112,13 +112,44 @@ export default function NutritionistProfile() {
         ? api.Nutritionists.updateNutritionistProfile
         : api.Nutritionists.createNutritionistProfile;
 
-      await convex.mutation(mutation, {
-        ...(profile && { nutritionistId: profile._id }),
-        userId: user._id,
-        ...form,
+      // Common data
+      const mutationData = {
+        phone: form.phone,
+        bio: form.bio,
+        degree: form.degree,
+        dietPhilosophy: form.dietPhilosophy,
         experienceYears: Number(form.experienceYears),
+        specialization: form.specialization,
+        clinicAddress: form.clinicAddress,
+        consultationModes: form.consultationModes,
+        languagesSpoken: form.languagesSpoken,
         consultationFee: Number(form.consultationFee),
-      });
+      };
+
+      let nutritionistId = profile?._id;
+
+      if (profile) {
+        // UPDATE
+        await convex.mutation(mutation, {
+          nutritionistId: profile._id,
+          ...mutationData,
+        });
+        nutritionistId = profile._id;
+      } else {
+        // CREATE
+        nutritionistId = await convex.mutation(mutation, {
+          userId: user._id,
+          ...mutationData,
+        });
+      }
+
+      // AFTER CREATE/UPDATE - Generate slots for this nutritionist
+      if (nutritionistId) {
+        await convex.mutation(api.Slots.generateSlots, {
+          nutritionistId: nutritionistId,
+          daysAhead: 7,
+        });
+      }
 
       Alert.alert("Success", "Profile saved successfully");
       setIsEditing(false);
@@ -129,7 +160,6 @@ export default function NutritionistProfile() {
       setSaving(false);
     }
   };
-
   // const handleLogout = async () => {
   //   Alert.alert(
   //     'Logout',
@@ -157,13 +187,13 @@ export default function NutritionistProfile() {
         style: "destructive",
         onPress: async () => {
           try {
-            // Step 1: Sign out from Firebase
+            // Sign out from Firebase
             await signOut(auth);
 
-            // Step 2: Clear user context immediately
+            // Clear user context immediately
             setUser(null);
 
-            // Step 3: Navigate to SignIn (this triggers the auth check in parent layout)
+            // Navigate to SignIn (this triggers the auth check in parent layout)
             // Use setTimeout to ensure context is updated before navigation
             setTimeout(() => {
               router.replace("/auth/SignIn");
