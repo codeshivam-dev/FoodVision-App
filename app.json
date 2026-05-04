@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "ai-diet-planner",
-    "slug": "ai-diet-planner",
+    "name": "FoodVision",
+    "slug": "foodvision",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "aidietplanner",
+    "scheme": "foodvision",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -20,7 +20,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.aidietplanner"
+      "package": "com.anonymous.foodvision"
     },
     "web": {
       "output": "static",
@@ -39,11 +39,19 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "owner": "codeshivam",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "efc34675-cf4f-4257-91d9-214143280492"
+      }
     }
   }
 }
